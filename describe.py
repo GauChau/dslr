@@ -22,11 +22,16 @@ def describe(dataset: pd.DataFrame) -> pd.DataFrame:
 
 	return pd.DataFrame(statistiques).T
 
-if len(sys.argv) < 2:
-    print("Usage : python script.py fichier.csv")
-    sys.exit(1)
-nom_fichier = sys.argv[1]
-dataset = pd.read_csv(nom_fichier, sep=",")
-# describe(dataset)
-# print(dataset.describe())
-# print(describe(dataset))
+def main():
+    if len(sys.argv) < 2:
+        print("Usage : python script.py fichier.csv")
+        sys.exit(1)
+    nom_fichier = sys.argv[1]
+    dataset = pd.read_csv(nom_fichier, sep=",")
+    # describe(dataset)
+    # print(dataset.describe())
+    # print(describe(dataset))
+
+
+if __name__ == "__main__":
+    main()

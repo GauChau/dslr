@@ -8,19 +8,25 @@ import math
 
 def model_weight_applicator(mats_weight: pd.Series, std_values: pd.DataFrame, bias: float)->pd.Series:
 
-	result= std_values.copy()
-	for i in result.index:
-		for col in mats_weight.index:
-			result.loc[i, col] *= mats_weight.loc[col]
+	# result= std_values.copy()
+	# for i in result.index:
+	# 	for col in mats_weight.index:
+	# 		result.loc[i, col] *= mats_weight.loc[col]
 	
-	return result.loc[:, mats_weight.index].sum(axis=1) + bias
+	# return result.loc[:, mats_weight.index].sum(axis=1) + bias
+	notes = std_values.loc[:, mats_weight.index]
+
+	# Multiplie chaque colonne par son poids,
+	# puis additionne les matières de chaque élève.
+	return notes.mul(mats_weight, axis="columns").sum(axis=1) + bias
 
 def sigmoid_calculator(z: pd.Series)->pd.Series:
-	p=z.copy()
-	# print(z)
-	for i in z.index:
-		p.loc[i] = 1 / (1 + np.exp(-z.loc[i]))
-	return p
+	# p=z.copy()
+	# # print(z)
+	# for i in z.index:
+	# 	p.loc[i] = 1 / (1 + np.exp(-z.loc[i]))
+	# return p
+	return 1 / (1 + np.exp(-z))
 
 def _verifier_entrees(reality: pd.Series,data: pd.DataFrame,sigmoid: pd.Series) -> None:
 	if not reality.index.equals(data.index):
@@ -56,102 +62,112 @@ def gradient_calculator(dataset: pd.DataFrame, mats_weight: pd.Series, ecart:pd.
 	return grads
 
 
+def holdOut(dataset: pd.DataFrame, reality: pd.DataFrame)-> pd.DataFrame:
 
-if len(sys.argv) < 2:
-	print("Usage : python script.py fichier.csv")
-	sys.exit(1)
-nom_fichier = sys.argv[1]
-dataset = pd.read_csv(nom_fichier, sep=",")
+	
+	result = reality.join(dataset)
+	train = []
+	for m in reality.columns:
+		group = result[result[m] == 1]
+		# print(len(group),"\n")
+		selection=group.sample(frac=0.8,random_state=50)
+		# selection=group.sample(frac=0.8)
+		train.append(selection)
 
-weights = pd.DataFrame()
-maison = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
-matieres = dataset.select_dtypes(include="number").drop(columns="Index").columns
-bias = 0.0
-learning_rate = 0.01
+	finish = pd.concat(train)
+	# verification = result.drop(index=finish.index)
+	# print("\n=====verif====\n",verification,len(verification),"\n=========\n")
+	# print("\n====result=====\n",finish,"\n=========\n")
+	return finish
 
 
-described_dataset = dc.describe(dataset.select_dtypes(include="number").drop(columns="Index"))
-standardized_dataset = dataset.select_dtypes(include="number").drop(columns="Index")
+def main():
+	if len(sys.argv) < 2:
+		print("Usage : python script.py fichier.csv")
+		sys.exit(1)
+	nom_fichier = sys.argv[1]
+	dataset = pd.read_csv(nom_fichier, sep=",")
 
-for m in maison:
+	maison = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
+	matieres = dataset.select_dtypes(include="number").drop(columns="Index").columns
+	weights = pd.DataFrame(0.0, index=matieres,columns=maison)
+	reality = pd.DataFrame({m: (dataset["Hogwarts House"] == m).astype(int) for m in maison})
+
+	learning_rate = 0.07
+	bias = pd.Series(0.0, index=maison)
+
+	hold_df = holdOut(dataset.select_dtypes(include="number").drop(columns="Index"),reality).sort_index()
+	verification_df = reality.join(dataset.select_dtypes(include="number").drop(columns="Index")).drop(index=hold_df.index)
+
+	described_dataset = dc.describe(hold_df)
+	# print(described_dataset)
+
+	# standardization of 80% to training
 	for mats in matieres:
-		weights.loc[mats, m] = 0.0
+		hold_df[mats] = ((hold_df[mats] - described_dataset.loc["mean",mats])/described_dataset.loc["std", mats]).fillna(0)
 
-for mats in matieres:
-	for i, notes in standardized_dataset.iterrows():
-		standardized_dataset.loc[i,mats] = (standardized_dataset.loc[i,mats] - described_dataset.loc["mean"].loc[mats])/described_dataset.loc["std"].loc[mats]
+	# standardization of the 20% verifiers
+	for mats in matieres:
+		verification_df[mats] = ((verification_df[mats] - described_dataset.loc["mean", mats])/ described_dataset.loc["std", mats]).fillna(0)
 
-standardized_dataset = standardized_dataset.fillna(0)
-
-reality = pd.DataFrame()
-for m in maison:
-	reality[m] = (dataset["Hogwarts House"] == m).astype(int)
-print(reality)
-
-# reality = (dataset["Hogwarts House"] == "Gryffindor").astype(int)
-calcs = pd.DataFrame()
-calcs["z"] = model_weight_applicator(weights["Gryffindor"], standardized_dataset,bias)
-calcs["p"] = sigmoid_calculator(calcs["z"])
-calcs["L"] = logloss(reality["Gryffindor"], standardized_dataset, calcs["p"])
-calcs["e"] = ecart(reality["Gryffindor"], standardized_dataset, calcs["p"])
-
-gradients = weights.copy()
-grads = gradient_calculator(standardized_dataset, weights["Gryffindor"], calcs["e"])
-grad_bias = calcs["e"].sum() / len(standardized_dataset)
-
-weights["Gryffindor"] -= learning_rate * grads
-bias -= learning_rate * grad_bias
-
-
-print( "===calcs===\n",calcs, "\n======\n")
-# print( "====std_data====\n",standardized_dataset, "========\n")
-print(grads)
-# joe= gradient_calculator(standardized_dataset,grads)
-
-# print(weights["Gryffindor"])
-# gradients(standardized_dataset,weights.iloc[:,:])
+	# print(hold_df)
 
 
 
+	for m in maison:
+		for i in range(100):
+			calcs = pd.DataFrame()
+			calcs["z"] = model_weight_applicator(weights[m], hold_df,bias.loc[m])
+			calcs["p"] = sigmoid_calculator(calcs["z"])
+			calcs["L"] = logloss(hold_df[m], hold_df, calcs["p"])
+			calcs["e"] = ecart(hold_df[m], hold_df, calcs["p"])
+			gradients = weights.copy()
+			grads = gradient_calculator(hold_df, weights[m], calcs["e"])
+			grad_bias = calcs["e"].sum() / len(hold_df)
+
+			weights[m] -= learning_rate * grads
+			bias.loc[m] -= learning_rate * grad_bias
+
+			gradient_max = max(grads.abs().max(), abs(grad_bias))
+
+			if gradient_max < 1e-4:
+				print("Convergence atteinte")
+				break
+
+	# print(weights)
 
 
+	for m in maison:
+		# Prédictions avec les poids et le biais appris
+		z = model_weight_applicator(weights[m], verification_df, bias.loc[m])
+		p = sigmoid_calculator(z)
+
+		# 1 = Gryffindor, 0 = pas Gryffindor
+		predictions = (p >= 0.5).astype(int)
+		attendu = verification_df[m]
+
+		accuracy = (predictions == attendu).mean()
+		perte = logloss(attendu, verification_df, p).mean()
+
+		# print(f"Prédictions correctes : {accuracy:.1%}")
+		# print(f"Logloss moyenne : {perte:.4f}")
+
+		# Référence : répondre toujours « pas Gryffindor »
+		reference = (attendu == 0).mean()
+		# print(f"Score sans distinction des élèves : {reference:.1%}")
 
 
+	weights.loc["bias"] = bias
+
+	weights.to_csv("model_weights.csv")
 
 
+	statistiques = described_dataset.loc[["mean", "std"], matieres].T
+
+	parametres = weights.join(statistiques)
+	print(parametres)
+	parametres.to_csv("modele.csv")
 
 
-
-
-
-
-# def logloss(maison: str, data:pd.DataFrame)->pd.Series:
-
-# 	result = data["p"].copy()
-# 	for i in data.index:
-# 		if data.iloc[i]["Hogwarts House"] == maison:
-# 			y = 1
-# 		else:
-# 			y = 0
-# 		p = result.iloc[i]
-# 		result.iloc[i] = -(y * math.log(p) + (1 - y) * math.log(1-p))
-# 	return result
-
-# def logloss_clean(reality: pd.Series, data:pd.DataFrame, sigmoid: pd.Series)-> pd.Series:
-# 	result = sigmoid.copy()
-# 	for i in reality.index:
-# 		y = reality.iloc[i]
-# 		p = result.iloc[i]
-# 		result.iloc[i] = -(y * math.log(p) + (1 - y) * math.log(1-p))
-# 	return result
-
-# def ecart(maison:str, data:pd.DataFrame)->pd.Series:
-# 	result = data["p"].copy()
-# 	for i in data.index:
-# 			if data.iloc[i]["Hogwarts House"] == maison:
-# 				y = 1
-# 			else:
-# 				y = 0
-# 			e = result.iloc[i]
-# 			result.iloc[i] = e - y
-# 	return result
+if __name__ == "__main__":
+	main()
