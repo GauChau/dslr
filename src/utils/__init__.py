@@ -14,6 +14,15 @@ from .stats import (
     dfunique,
     pearson_corr,
 )
+from .optimizers import (
+    sigmoid,
+    batch_gd,
+    stochastic_gd,
+    minibatch_gd,
+    momentum_gd,
+    adam_gd,
+    optimize,
+)
 
 __all__ = [
     "dfcount",
@@ -30,5 +39,11 @@ __all__ = [
     "dfmissing_pct",
     "dfunique",
     "pearson_corr",
+    "sigmoid",
+    "batch_gd",
+    "stochastic_gd",
+    "minibatch_gd",
+    "momentum_gd",
+    "adam_gd",
+    "optimize",
 ]
-

@@ -587,7 +587,7 @@ $$x_{norm} = \frac{x - \mu}{\sigma}$$
 
 在完美達成所有 Mandatory 規範的前提下，可實作以下加分功能：
 
-1. **豐富化 `describe.py` 統計資訊**：
+1. **豐富 `describe.py` 統計資訊**：
    - 增加變異數 ($Variance$)、四分位距 ($IQR$)、全距 ($Range$)、偏態 ($Skewness$)、峰態 ($Kurtosis$) 以及缺失值比例 ($Missing\%$)。
 2. **多種優化演算法支援**：
    - **隨機梯度下降 (Stochastic Gradient Descent, SGD)**：每次迭代隨機選取 1 筆樣本更新梯度，計算速度極快。

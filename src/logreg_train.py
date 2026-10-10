@@ -1,8 +1,11 @@
+import argparse
 import pandas as pd
 import numpy as np
 import describe as dc
 import utils.stats as st
 import matplotlib.pyplot as plt
+import utils.optimizers as opt_utils
+from utils.optimizers import sigmoid
 import sys
 import math
 
@@ -19,14 +22,6 @@ def model_weight_applicator(mats_weight: pd.Series, std_values: pd.DataFrame, bi
 	# Multiplie chaque colonne par son poids,
 	# puis additionne les matières de chaque élève.
 	return notes.mul(mats_weight, axis="columns").sum(axis=1) + bias
-
-def sigmoid_calculator(z: pd.Series)->pd.Series:
-	# p=z.copy()
-	# # print(z)
-	# for i in z.index:
-	# 	p.loc[i] = 1 / (1 + np.exp(-z.loc[i]))
-	# return p
-	return 1 / (1 + np.exp(-z))
 
 def _verifier_entrees(reality: pd.Series,data: pd.DataFrame,sigmoid: pd.Series) -> None:
 	if not reality.index.equals(data.index):
@@ -82,10 +77,17 @@ def holdOut(dataset: pd.DataFrame, reality: pd.DataFrame)-> pd.DataFrame:
 
 
 def main():
-	if len(sys.argv) < 2:
-		print("Usage : python script.py fichier.csv")
-		sys.exit(1)
-	nom_fichier = sys.argv[1]
+	parser = argparse.ArgumentParser(description="Train logistic regression model.")
+	parser.add_argument("dataset", help="Path to dataset_train.csv")
+	parser.add_argument(
+		"--opt",
+		choices=["bgd", "sgd", "minibatch", "momentum", "adam"],
+		default=None,
+		help="Bonus optimization algorithm ('bgd', 'sgd', 'minibatch', 'momentum', or 'adam')",
+	)
+	args = parser.parse_args()
+
+	nom_fichier = args.dataset
 	dataset = pd.read_csv(nom_fichier, sep=",")
 
 	maison = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
@@ -112,27 +114,30 @@ def main():
 
 	# print(hold_df)
 
+	if args.opt is not None:
+		weights, bias = opt_utils.optimize(
+			hold_df, weights, bias, opt=args.opt, learning_rate=learning_rate
+		)
+	else:
+		for m in maison:
+			for i in range(100):
+				calcs = pd.DataFrame()
+				calcs["z"] = model_weight_applicator(weights[m], hold_df,bias.loc[m])
+				calcs["p"] = sigmoid(calcs["z"])
+				calcs["L"] = logloss(hold_df[m], hold_df, calcs["p"])
+				calcs["e"] = ecart(hold_df[m], hold_df, calcs["p"])
+				gradients = weights.copy()
+				grads = gradient_calculator(hold_df, weights[m], calcs["e"])
+				grad_bias = calcs["e"].sum() / len(hold_df)
 
+				weights[m] -= learning_rate * grads
+				bias.loc[m] -= learning_rate * grad_bias
 
-	for m in maison:
-		for i in range(100):
-			calcs = pd.DataFrame()
-			calcs["z"] = model_weight_applicator(weights[m], hold_df,bias.loc[m])
-			calcs["p"] = sigmoid_calculator(calcs["z"])
-			calcs["L"] = logloss(hold_df[m], hold_df, calcs["p"])
-			calcs["e"] = ecart(hold_df[m], hold_df, calcs["p"])
-			gradients = weights.copy()
-			grads = gradient_calculator(hold_df, weights[m], calcs["e"])
-			grad_bias = calcs["e"].sum() / len(hold_df)
+				gradient_max = max(grads.abs().max(), abs(grad_bias))
 
-			weights[m] -= learning_rate * grads
-			bias.loc[m] -= learning_rate * grad_bias
-
-			gradient_max = max(grads.abs().max(), abs(grad_bias))
-
-			if gradient_max < 1e-4:
-				print("Convergence atteinte")
-				break
+				if gradient_max < 1e-4:
+					print("Convergence atteinte")
+					break
 
 	# print(weights)
 
@@ -140,7 +145,7 @@ def main():
 	for m in maison:
 		# Prédictions avec les poids et le biais appris
 		z = model_weight_applicator(weights[m], verification_df, bias.loc[m])
-		p = sigmoid_calculator(z)
+		p = sigmoid(z)
 
 		# 1 = Gryffindor, 0 = pas Gryffindor
 		predictions = (p >= 0.5).astype(int)
