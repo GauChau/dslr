@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import sys
 import numpy as np
-import stats as st
+import utils.stats as st
 
 
 if len(sys.argv) < 2:

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import describe as dc
-import stats as st
+import utils.stats as st
 import matplotlib.pyplot as plt
 import sys
 import math

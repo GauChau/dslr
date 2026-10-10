@@ -1,10 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
-# from stats import *
-import stats
+import utils.stats as stats
 import describe
-# from describe import describe
 
 
 # def histo(dataframe: pd.dataframe, col: str) :

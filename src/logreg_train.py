@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import describe as dc
-import stats as st
+import utils.stats as st
 import matplotlib.pyplot as plt
 import sys
 import math
@@ -12,7 +12,7 @@ def model_weight_applicator(mats_weight: pd.Series, std_values: pd.DataFrame, bi
 	# for i in result.index:
 	# 	for col in mats_weight.index:
 	# 		result.loc[i, col] *= mats_weight.loc[col]
-	
+
 	# return result.loc[:, mats_weight.index].sum(axis=1) + bias
 	notes = std_values.loc[:, mats_weight.index]
 
@@ -64,7 +64,7 @@ def gradient_calculator(dataset: pd.DataFrame, mats_weight: pd.Series, ecart:pd.
 
 def holdOut(dataset: pd.DataFrame, reality: pd.DataFrame)-> pd.DataFrame:
 
-	
+
 	result = reality.join(dataset)
 	train = []
 	for m in reality.columns:

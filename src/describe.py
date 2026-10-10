@@ -1,7 +1,6 @@
 import pandas as pd
 import sys
-# from stats import *
-import stats
+import utils.stats as stats
 
 
 # nom_fichier = sys.argv[1]
