@@ -2,7 +2,7 @@ import pandas as pd
 
 
 def dfcount(dataframe: pd.DataFrame) -> pd.Series:
-    """Count the number of non-NaN values"""
+    """Count the number of non-NaN values."""
     resultats = pd.Series(dtype="float64")
     for col in dataframe.select_dtypes(include="number").columns:
         total = 0
@@ -14,7 +14,7 @@ def dfcount(dataframe: pd.DataFrame) -> pd.Series:
 
 
 def dfmean(dataframe: pd.DataFrame) -> pd.Series:
-    """Calculate the arithmetic mean"""
+    """Calculate the arithmetic mean."""
     resultats = pd.Series(dtype="float64")
     for col in dataframe.select_dtypes(include="number").columns:
         total = 0.0
@@ -28,31 +28,25 @@ def dfmean(dataframe: pd.DataFrame) -> pd.Series:
 
 
 def dfvar(dataframe: pd.DataFrame) -> pd.Series:
-    """Calculate the unbiased sample variance (ddof = 1)"""
-    resultats = pd.Series(dtype="float64")
+    """Calculate the unbiased sample variance (ddof = 1)."""
+    res = pd.Series(dtype="float64")
     mean = dfmean(dataframe)
-    count = dfcount(dataframe)
 
     for col in dataframe.select_dtypes(include="number").columns:
-        if count[col] < 2:
-            resultats.loc[col] = float("nan")
+        s = dataframe[col].dropna()
+        n = len(s)
+        if n < 2:
+            res.loc[col] = float("nan")
             continue
 
-        total = 0.0
-        for value in dataframe[col]:
-            if pd.notna(value):
-                total += (value - mean[col]) ** 2
-        resultats.loc[col] = total / (count[col] - 1)
-    return resultats
+        diff = s - mean[col]
+        res.loc[col] = sum(diff ** 2) / (n - 1)
+    return res
 
 
 def dfstd(dataframe: pd.DataFrame) -> pd.Series:
-    """Calculate the unbiased sample standard deviation (ddof = 1)"""
-    resultats = pd.Series(dtype="float64")
-    var = dfvar(dataframe)
-    for col in var.index:
-        resultats.loc[col] = var[col] ** 0.5 if pd.notna(var[col]) else float("nan")
-    return resultats
+    """Calculate the unbiased sample standard deviation (ddof = 1)."""
+    return dfvar(dataframe) ** 0.5
 
 
 def dfmin(dataframe: pd.DataFrame) -> pd.Series:
@@ -112,113 +106,104 @@ def dfpercentile(dataframe: pd.DataFrame, prct: float) -> pd.Series:
 # =====================================================================
 
 def dfrange(dataframe: pd.DataFrame) -> pd.Series:
-    """Calculate the range (Max - Min)"""
+    """Calculate the range (Max - Min)."""
     return dfmax(dataframe) - dfmin(dataframe)
 
 
 def dfiqr(dataframe: pd.DataFrame) -> pd.Series:
-    """Calculate the interquartile range (IQR = Q75 - Q25)"""
+    """Calculate the interquartile range (IQR = Q75 - Q25)."""
     return dfpercentile(dataframe, 75) - dfpercentile(dataframe, 25)
 
 
+# 分布偏右(>0)或偏左(<0)
 def dfskew(dataframe: pd.DataFrame) -> pd.Series:
-    """Calculate the Fisher-Pearson coefficient of skewness"""
-    resultats = pd.Series(dtype="float64")
+    """Calculate the Fisher-Pearson coefficient of skewness."""
+    res = pd.Series(dtype="float64")
     mean = dfmean(dataframe)
-    count = dfcount(dataframe)
 
     for col in dataframe.select_dtypes(include="number").columns:
-        n = count[col]
-        if n < 3:
-            resultats.loc[col] = float("nan")
+        s = dataframe[col].dropna()
+        n = len(s)
+        if n < 3:  # For statistical meaningfulness
+            res.loc[col] = float("nan")
             continue
-        m2 = 0.0
-        m3 = 0.0
-        for value in dataframe[col]:
-            if pd.notna(value):
-                diff = value - mean[col]
-                m2 += diff ** 2
-                m3 += diff ** 3
-        m2 /= n
-        m3 /= n
-        resultats.loc[col] = m3 / (m2 ** 1.5) if m2 > 0 else 0.0
-    return resultats
+
+        diff = s - mean[col]
+        m2 = sum(diff ** 2) / n  # Second central moment, for standardization
+        m3 = sum(diff ** 3) / n  # Third central moment
+        res.loc[col] = m3 / (m2 ** 1.5) if m2 > 0 else 0.0
+    return res
+# m3 Third central moment:
+#     立方保留正負號，而且會放大絕對值大的偏差，因此對分布兩側的不平衡特別敏感。
+#     (但偏態係數不代表分布一定對稱，可能正負方向的三次偏差剛好抵消)
+# Pandas 的向量化運算:  ie. diff = s - mean[col], s = dataframe[col].dropna()
+#     在 Python 中，如果用 for 迴圈逐行處理資料（像是 for value in dataframe[col]:），
+#     Python 必須一邊執行迴圈、一邊檢查型態、一邊做加減乘除，速度會非常慢。
+#     向量化運算則是利用底層由 C 語言或 Fortran 編寫的高效程式碼（透過 NumPy），
+#     一次性地對整個陣列（Array）或欄位進行平行計算。
 
 
+# 超額峰度：相比於常態分佈，資料分佈的「尖銳程度」的差異。
+# → 比常態分佈極端值出現的機率更高/低。
+# 峰度（kurtosis）是用來衡量資料分佈的「尾端厚度（tails）」與「尖銳程度」的指標，
+#   它描述的是資料極端值（outliers）出現的機率高低。
+# 標準的常態分佈（normal distribution）其峰度固定等於 3。
+#   為了方便比較，統計學家將峰度減去 3，這個差值就稱為超額峰度：
+#       excess kurtosis = kurtosis - 3
+# 高峰分布：極端值出現的機率比常態分佈高。
+# 平坦分布：極端值出現的機率比常態分佈低。
+# 公式中使用 4 次方，使其對距離平均數很遠的「極端值」非常敏感。
 def dfkurt(dataframe: pd.DataFrame) -> pd.Series:
-    """Calculate the excess kurtosis (Fisher's definition)"""
-    resultats = pd.Series(dtype="float64")
+    """Calculate the excess kurtosis (Fisher's definition)."""
+    res = pd.Series(dtype="float64")
     mean = dfmean(dataframe)
-    count = dfcount(dataframe)
 
     for col in dataframe.select_dtypes(include="number").columns:
-        n = count[col]
+        s = dataframe[col].dropna()
+        n = len(s)
         if n < 4:
-            resultats.loc[col] = float("nan")
+            res.loc[col] = float("nan")
             continue
-        m2 = 0.0
-        m4 = 0.0
-        for value in dataframe[col]:
-            if pd.notna(value):
-                diff = value - mean[col]
-                m2 += diff ** 2
-                m4 += diff ** 4
-        m2 /= n
-        m4 /= n
-        resultats.loc[col] = (m4 / (m2 ** 2)) - 3.0 if m2 > 0 else 0.0
-    return resultats
+
+        diff = s - mean[col]
+        m2 = sum(diff ** 2) / n
+        m4 = sum(diff ** 4) / n
+        res.loc[col] = (m4 / (m2 ** 2)) - 3.0 if m2 > 0 else 0.0
+    return res
 
 
 def dfmissing_pct(dataframe: pd.DataFrame) -> pd.Series:
-    """Calculate the percentage of missing (NaN) values"""
-    resultats = pd.Series(dtype="float64")
+    """Calculate the percentage of missing (NaN) values."""
     total_rows = len(dataframe)
-    count = dfcount(dataframe)
-
-    for col in dataframe.select_dtypes(include="number").columns:
-        if total_rows == 0:
-            resultats.loc[col] = 0.0
-        else:
-            missing = total_rows - count[col]
-            resultats.loc[col] = (missing / total_rows) * 100.0
-    return resultats
+    if total_rows == 0:
+        return pd.Series(
+            0.0,
+            index=dataframe.select_dtypes(include="number").columns
+        )  # 索引是所有數值欄位名稱，數值全部填 0.0 的 pd.Series
+    return ((total_rows - dfcount(dataframe)) / total_rows) * 100.0
 
 
 def dfunique(dataframe: pd.DataFrame) -> pd.Series:
-    """Count the number of distinct non-NaN values"""
-    resultats = pd.Series(dtype="float64")
+    """Count the number of distinct non-NaN values."""
+    res = pd.Series(dtype="float64")
     for col in dataframe.select_dtypes(include="number").columns:
-        seen = set()
-        for value in dataframe[col]:
-            if pd.notna(value):
-                seen.add(value)
-        resultats.loc[col] = float(len(seen))
-    return resultats
+        # Set本身不允許重複元素，所以重複出現的數值會自動被過濾。
+        res.loc[col] = float(len(set(dataframe[col].dropna())))
+    return res
 
 
+# 衡量兩組連續變數之間線性相關程度
 def pearson_corr(s1: pd.Series, s2: pd.Series) -> float:
-    """Calculate the Pearson correlation coefficient between two numerical Series"""
-    valid_pairs = [
-        (float(v1), float(v2))
-        for v1, v2 in zip(s1, s2)
-        if pd.notna(v1) and pd.notna(v2)
-    ]
-    n = len(valid_pairs)
+    """Calculate the Pearson correlation coefficient between two numerical Series."""
+    mask = s1.notna() & s2.notna()
+    x = s1[mask]
+    y = s2[mask]
+    n = len(x)
     if n < 2:
         return 0.0
 
-    mean1 = sum(p[0] for p in valid_pairs) / n
-    mean2 = sum(p[1] for p in valid_pairs) / n
+    d1 = x - (sum(x) / n)
+    d2 = y - (sum(y) / n)
 
-    num = 0.0
-    den1 = 0.0
-    den2 = 0.0
-    for v1, v2 in valid_pairs:
-        d1 = v1 - mean1
-        d2 = v2 - mean2
-        num += d1 * d2
-        den1 += d1 ** 2
-        den2 += d2 ** 2
-
-    denom = (den1 * den2) ** 0.5
-    return num / denom if denom > 0 else 0.0
+    denom = (sum(d1 ** 2) * sum(d2 ** 2)) ** 0.5
+    return float(sum(d1 * d2) / denom) if denom > 0 else 0.0
