@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import pandas as pd
 import sys
 import utils.stats as stats

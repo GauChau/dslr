@@ -7,6 +7,16 @@ def sigmoid(z: np.ndarray | pd.Series) -> np.ndarray | pd.Series:
     return 1.0 / (1.0 + np.exp(-np.clip(z, -500.0, 500.0)))
 
 
+def l2_penalty(w: np.ndarray, l2_lambda: float, m_samples: int) -> float:
+    """[Bonus] Compute the L2 (Ridge) regularization cost term: (lambda / (2 * m)) * sum(w_j^2).
+
+    Note: The bias term (theta_0) is stored separately and is strictly excluded from regularization.
+    """
+    if l2_lambda <= 0.0 or m_samples <= 0:
+        return 0.0
+    return float((l2_lambda / (2.0 * m_samples)) * float(w @ w))
+
+
 # =====================================================================
 # 1. Batch Gradient Descent (BGD) - 批次梯度下降
 #    每個 Epoch 使用「全部訓練樣本 (m 筆)」計算一次平均梯度，才更新一次權重。
@@ -20,6 +30,7 @@ def batch_gd(
     learning_rate: float = 0.07,
     epochs: int = 100,
     tol: float = 1e-4,
+    l2_lambda: float = 0.0,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Train One-vs-All logistic regression weights using Batch Gradient Descent."""
     weights = weights.copy()
@@ -40,7 +51,8 @@ def batch_gd(
             p = sigmoid(z)
             e = p - y
 
-            grads = (X.T @ e) / m_samples
+            # L2 正則化僅懲罰特徵權重 w，Bias 項 b (theta_0) 不參與正則化
+            grads = (X.T @ e) / m_samples + (l2_lambda / m_samples) * w
             grad_bias = float(sum(e)) / m_samples
 
             w -= learning_rate * grads
@@ -70,6 +82,7 @@ def stochastic_gd(
     learning_rate: float = 0.01,
     epochs: int = 20,
     tol: float = 1e-4,
+    l2_lambda: float = 0.0,
     random_state: int = 50,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """[Bonus] Train One-vs-All logistic regression weights using Stochastic Gradient Descent."""
@@ -98,7 +111,7 @@ def stochastic_gd(
                 p = float(sigmoid(np.array([z]))[0])
                 e = p - yi
 
-                grads = xi * e
+                grads = xi * e + (l2_lambda / m_samples) * w
                 grad_bias = e
 
                 w -= learning_rate * grads
@@ -106,7 +119,7 @@ def stochastic_gd(
 
             # Epoch 結束後檢查整體梯度是否已收斂
             full_e = sigmoid(X @ w + b) - y
-            full_grads = (X.T @ full_e) / m_samples
+            full_grads = (X.T @ full_e) / m_samples + (l2_lambda / m_samples) * w
             full_grad_bias = float(sum(full_e)) / m_samples
             gradient_max = max(float(max(abs(g) for g in full_grads)), abs(full_grad_bias))
             if gradient_max < tol:
@@ -125,7 +138,7 @@ def stochastic_gd(
 #    計算該批次的平均梯度並更新權重。
 #    優點：既能利用矩陣向量化加速，又比 BGD 更新更頻繁、比 SGD 更穩定。
 # =====================================================================
-def minibatch_gd(
+def mbgd_gd(
     hold_df: pd.DataFrame,
     weights: pd.DataFrame,
     bias: pd.Series,
@@ -133,6 +146,7 @@ def minibatch_gd(
     epochs: int = 50,
     batch_size: int = 32,
     tol: float = 1e-4,
+    l2_lambda: float = 0.0,
     random_state: int = 50,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """[Bonus] Train One-vs-All logistic regression weights using Mini-batch Gradient Descent."""
@@ -162,14 +176,14 @@ def minibatch_gd(
                 p = sigmoid(z)
                 e = p - y_batch
 
-                grads = (X_batch.T @ e) / b_len
+                grads = (X_batch.T @ e) / b_len + (l2_lambda / m_samples) * w
                 grad_bias = float(sum(e)) / b_len
 
                 w -= learning_rate * grads
                 b -= learning_rate * grad_bias
 
             full_e = sigmoid(X @ w + b) - y
-            full_grads = (X.T @ full_e) / m_samples
+            full_grads = (X.T @ full_e) / m_samples + (l2_lambda / m_samples) * w
             full_grad_bias = float(sum(full_e)) / m_samples
             gradient_max = max(float(max(abs(g) for g in full_grads)), abs(full_grad_bias))
             if gradient_max < tol:
@@ -197,6 +211,7 @@ def momentum_gd(
     epochs: int = 100,
     beta: float = 0.9,
     tol: float = 1e-4,
+    l2_lambda: float = 0.0,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """[Bonus] Train One-vs-All logistic regression weights using Gradient Descent with Momentum."""
     weights = weights.copy()
@@ -221,7 +236,7 @@ def momentum_gd(
             p = sigmoid(z)
             e = p - y
 
-            grads = (X.T @ e) / m_samples
+            grads = (X.T @ e) / m_samples + (l2_lambda / m_samples) * w
             grad_bias = float(sum(e)) / m_samples
 
             # 指數移動平均累積梯度動量
@@ -258,6 +273,7 @@ def adam_gd(
     beta2: float = 0.999,
     eps: float = 1e-8,
     tol: float = 1e-4,
+    l2_lambda: float = 0.0,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """[Bonus] Train One-vs-All logistic regression weights using the Adam optimizer."""
     weights = weights.copy()
@@ -284,7 +300,7 @@ def adam_gd(
             p = sigmoid(z)
             e = p - y
 
-            grads = (X.T @ e) / m_samples
+            grads = (X.T @ e) / m_samples + (l2_lambda / m_samples) * w
             grad_bias = float(sum(e)) / m_samples
 
             # 更新一階動差（梯度平均方向）與二階動差（梯度平方平均幅度）
@@ -314,8 +330,8 @@ def adam_gd(
 
 
 # =====================================================================
-# 統一入口函式 (Unified Dispatcher)
-# 讓 logreg_train.py 只需呼叫 optimize(..., opt="bgd" | "sgd" | "minibatch" | "momentum" | "adam")
+# 統一接口函式 (Unified Dispatcher)
+# 讓 logreg_train.py 只需呼叫 optimize(..., opt="bgd" | "sgd" | "mbgd" | "momentum" | "adam")
 # =====================================================================
 def optimize(
     hold_df: pd.DataFrame,
@@ -325,21 +341,36 @@ def optimize(
     learning_rate: float = 0.07,
     epochs: int = 100,
     batch_size: int = 32,
+    l2_lambda: float = 0.0,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Dispatch training to the selected optimization algorithm."""
     opt_name = opt.lower().strip()
     if opt_name in ("bgd", "batch"):
-        return batch_gd(hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs)
+        return batch_gd(
+            hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs, l2_lambda=l2_lambda
+        )
     if opt_name == "sgd":
-        return stochastic_gd(hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs)
-    if opt_name in ("minibatch", "mb", "mbgd"):
-        return minibatch_gd(
-            hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs, batch_size=batch_size
+        return stochastic_gd(
+            hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs, l2_lambda=l2_lambda
+        )
+    if opt_name in ("mb", "mbgd", "mini"):
+        return mbgd_gd(
+            hold_df,
+            weights,
+            bias,
+            learning_rate=learning_rate,
+            epochs=epochs,
+            batch_size=batch_size,
+            l2_lambda=l2_lambda,
         )
     if opt_name == "momentum":
-        return momentum_gd(hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs)
+        return momentum_gd(
+            hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs, l2_lambda=l2_lambda
+        )
     if opt_name == "adam":
-        return adam_gd(hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs)
+        return adam_gd(
+            hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs, l2_lambda=l2_lambda
+        )
     raise ValueError(
-        f"Unknown optimizer '{opt}'. Choose from: 'bgd', 'sgd', 'minibatch', 'momentum', 'adam'."
+        f"Unknown optimizer '{opt}'. Choose from: 'bgd', 'sgd', 'mbgd', 'momentum', 'adam'."
     )

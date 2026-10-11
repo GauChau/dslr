@@ -11,7 +11,7 @@ def dfcount(dataframe: pd.DataFrame) -> pd.Series:
                 total += 1
         resultats.loc[col] = float(total)
     return resultats
-
+# loc: location, label-based indexer in Pandas.
 
 def dfmean(dataframe: pd.DataFrame) -> pd.Series:
     """Calculate the arithmetic mean."""

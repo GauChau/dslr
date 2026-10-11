@@ -16,9 +16,10 @@ from .stats import (
 )
 from .optimizers import (
     sigmoid,
+    l2_penalty,
     batch_gd,
     stochastic_gd,
-    minibatch_gd,
+    mbgd_gd,
     momentum_gd,
     adam_gd,
     optimize,
@@ -40,9 +41,10 @@ __all__ = [
     "dfunique",
     "pearson_corr",
     "sigmoid",
+    "l2_penalty",
     "batch_gd",
     "stochastic_gd",
-    "minibatch_gd",
+    "mbgd_gd",
     "momentum_gd",
     "adam_gd",
     "optimize",

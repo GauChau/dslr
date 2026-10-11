@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import pandas as pd
 import numpy as np
@@ -49,11 +50,16 @@ def ecart(reality: pd.Series,data: pd.DataFrame,sigmoid: pd.Series) -> pd.Series
 
 	return (sigmoid.astype(float) - reality.astype(float)).rename("e")
 
-def gradient_calculator(dataset: pd.DataFrame, mats_weight: pd.Series, ecart:pd.Series) -> pd.Series:
+def gradient_calculator(
+	dataset: pd.DataFrame, mats_weight: pd.Series, ecart: pd.Series, l2_lambda: float = 0.0
+) -> pd.Series:
 	grads = mats_weight.copy()
+	m_samples = len(dataset)
 
 	for mats in mats_weight.index:
-		grads.loc[mats] = (dataset[mats] * ecart).sum() / len(dataset)
+		grads.loc[mats] = (dataset[mats] * ecart).sum() / m_samples + (
+			l2_lambda / m_samples
+		) * mats_weight.loc[mats]
 	return grads
 
 
@@ -77,15 +83,41 @@ def holdOut(dataset: pd.DataFrame, reality: pd.DataFrame)-> pd.DataFrame:
 
 
 def main():
+	"""
+	Train and evaluate logistic regression models and export the learned
+	weights, biases, etc. to CSV files for Hogwarts Houses.
+
+	Load the dataset, split it into training and verification sets, and standardize
+	the numerical features. Train one binary classifier per House, optionally
+	using a selected optimization algorithm and L2 regularization.
+
+	Arguments:
+	dataset : Path to the training dataset CSV file.
+	--opt   : Optional optimization algorithm (bgd, sgd, mbgd, momentum, or adam).
+	--lambda: Non-negative L2 regularization strength (default: 0.0).
+
+	Returns:
+	model_weights.csv: Learned feature weights and biases.
+	modele.csv: Learned parameters and feature standardization statistics.
+	"""
 	parser = argparse.ArgumentParser(description="Train logistic regression model.")
 	parser.add_argument("dataset", help="Path to dataset_train.csv")
 	parser.add_argument(
 		"--opt",
-		choices=["bgd", "sgd", "minibatch", "momentum", "adam"],
+		choices=["bgd", "sgd", "mbgd", "momentum", "adam"],
 		default=None,
-		help="Bonus optimization algorithm ('bgd', 'sgd', 'minibatch', 'momentum', or 'adam')",
+		help="Bonus optimization algorithm ('bgd', 'sgd', 'mbgd', 'momentum', or 'adam')",
+	)
+	parser.add_argument(
+		"--lambda",
+		dest="l2_lambda",
+		type=float,
+		default=0.0,
+		help="Bonus L2 regularization strength lambda (default: 0.0; bias theta_0 is excluded)",
 	)
 	args = parser.parse_args()
+	if args.l2_lambda < 0.0:
+		parser.error("--lambda must be non-negative (>= 0.0).")
 
 	nom_fichier = args.dataset
 	dataset = pd.read_csv(nom_fichier, sep=",")
@@ -114,9 +146,14 @@ def main():
 
 	# print(hold_df)
 
-	if args.opt is not None:
+	if args.opt is not None or args.l2_lambda > 0.0:
 		weights, bias = opt_utils.optimize(
-			hold_df, weights, bias, opt=args.opt, learning_rate=learning_rate
+			hold_df,
+			weights,
+			bias,
+			opt=args.opt if args.opt is not None else "bgd",
+			learning_rate=learning_rate,
+			l2_lambda=args.l2_lambda,
 		)
 	else:
 		for m in maison:
@@ -127,7 +164,7 @@ def main():
 				calcs["L"] = logloss(hold_df[m], hold_df, calcs["p"])
 				calcs["e"] = ecart(hold_df[m], hold_df, calcs["p"])
 				gradients = weights.copy()
-				grads = gradient_calculator(hold_df, weights[m], calcs["e"])
+				grads = gradient_calculator(hold_df, weights[m], calcs["e"], l2_lambda=args.l2_lambda)
 				grad_bias = calcs["e"].sum() / len(hold_df)
 
 				weights[m] -= learning_rate * grads
