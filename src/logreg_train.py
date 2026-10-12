@@ -84,13 +84,13 @@ def main():
 	parser = argparse.ArgumentParser(description="Train logistic regression model.")
 	parser.add_argument("dataset", help="Path to dataset_train.csv")
 	parser.add_argument(
-		"--opt",
+		"-o", "--opt",
 		choices=["bgd", "sgd", "mini", "momentum", "adam"],
 		default="bgd",
 		help="Optimization algorithm ('bgd' [default], 'sgd', 'mini', 'momentum', or 'adam')",
 	)
 	parser.add_argument(
-		"--lambda",
+		"-l", "--lambda",
 		dest="l2_lambda",
 		type=float,
 		default=0.0,

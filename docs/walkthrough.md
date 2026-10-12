@@ -21,7 +21,7 @@
   - [Bonus 2: `src/utils/optimizers.py` 各類梯度下降優化演算法與其優點](#bonus-2-srcutilsoptimizerspy-各類梯度下降優化演算法與其優點)
   - [Bonus 3: 正則化機制 ($L_2$ Regularization / Ridge)](#bonus-3-正則化機制-l_2-regularization--ridge)
   - [Bonus 4: 學習曲線視覺化與 Early Stopping](#bonus-4-學習曲線視覺化與-early-stopping)
-  - [Bonus 5: 自我驗證與口試答辯評估工具 (`src/evaluate.py`)](#bonus-5-自我驗證與口試答辯評估工具-srcevaluatepy)
+  - [Bonus 5: 自動化測試與口試答辯驗證套件 (`tester/tester.py`)](#bonus-5-自動化測試與口試答辯驗證套件-testertesterpy)
 
 ---
 
@@ -125,11 +125,11 @@ $$J(\theta) = -\frac{1}{m} \sum_{i=1}^{m} \Big[ y^{(i)} \log(h_\theta(x^{(i)})) 
 > 線性回歸通常使用均方誤差（MSE, Mean Squared Error），但邏輯回歸必須使用對數損失（Log Loss），核心原因包括：
 > 1. **凸優化保證（Convexity vs. Non-Convexity）**：
 >    - 若將線性回歸的 MSE 直接套用在邏輯回歸上，由於複合了非線性的 Sigmoid 函數 $h_\theta(x) = \frac{1}{1 + e^{-\theta^T x}}$，損失曲面將變成**非凸函數（Non-Convex）**。此時曲面充滿大量局部極小值（Local Minima）與梯度趨近零的鞍點／平原區（Plateaus），導致梯度下降容易卡在局部劣解。
->    - 相反地，二元交叉熵損失與 Sigmoid 結合後的 Hessian 矩陣為半正定矩陣，在數學上證明為**凸函數（Convex Function）**。凸函數形如完美碗狀，「任何局部極小值即為全局最優解（Global Minimum）」，從根本上保證了梯度下降演算法一定能找到全局最優參數。
+>    - 相反地，對數損失與 Sigmoid 結合後的 Hessian 矩陣為半正定矩陣，在數學上證明為**凸函數（Convex Function）**。凸函數形如完美碗狀，「任何局部極小值即為全局最優解（Global Minimum）」，從根本上保證了梯度下降演算法一定能找到全局最優參數。
 > 2. **數學理論源頭：最大概似估計（Maximum Likelihood Estimation, MLE）**：
 >    - 邏輯回歸本質是在估計條件機率：$P(y=1 \mid x) = h_\theta(x)$，而 $P(y=0 \mid x) = 1 - h_\theta(x)$。
 >    - 樣本標籤服從**伯努利分佈（Bernoulli Distribution）**：$P(y \mid x) = (h_\theta(x))^y (1 - h_\theta(x))^{1-y}$。
->    - 假設樣本獨立同分布（i.i.d.），整體資料集的聯合概似函數為 $L(\theta) = \prod_{i=1}^m P(y^{(i)} \mid x^{(i)})$。對概似函數取負對數（Negative Log-Likelihood, NLL）並除以 $m$，便自然推導出二元交叉熵成本函數。**最小化交叉熵損失，在數學本質上完全等價於最大化觀測樣本的概似機率**。
+>    - 假設樣本獨立同分布（i.i.d.），整體資料集的聯合概似函數為 $L(\theta) = \prod_{i=1}^m P(y^{(i)} \mid x^{(i)})$。對概似函數取負對數（Negative Log-Likelihood, NLL）並除以 $m$，便自然推導出對數成本函數。**最小化交叉熵損失，在數學本質上完全等價於最大化觀測樣本的概似機率**。
 > 3. **懲罰機制與避免梯度消失（Preventing Gradient Vanishing）**：
 >    - **嚴厲懲罰自信的錯誤**：當真實值 $y=1$ 但預測 $h_\theta(x) \to 0$ 時，損失 $-\log(h_\theta(x)) \to \infty$；反之 $y=0$ 預測 $h_\theta(x) \to 1$ 亦趨向無窮大，能對嚴重的預測偏差施加巨大的梯度回饋。
 >    - **優雅求導與穩定梯度**：若使用 MSE，在預測嚴重錯誤處（$z = \theta^T x \gg 0$ 但 $y=0$），Sigmoid 的導數 $\sigma'(z) \approx 0$，會造成**梯度消失（Gradient Vanishing）**使模型停滯不前。而交叉熵損失求偏導時，對數與指數完美抵消，得到極度優雅的線性梯度公式：
@@ -330,7 +330,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 >    - 因為 $L_2$ 使用同一個係數 $\lambda$ 平等懲罰所有權重平方和 $\sum w_j^2$。若未標準化，分數高達數萬分的科目（如 `Arithmancy`）其權重 $w_j$ 天生極小，而分數僅在 $-10 \sim 10$ 的科目（如 `Herbology`）其權重 $w_j$ 天生較大，$L_2$ 就會不公平地重罰數值尺度小的科目。先做 Z-score 標準化讓所有特徵同尺度，$\lambda$ 的懲罰才具備公平性。
 
 #### 3. 支援範圍與 CLI 指令範例
-五種優化器（`batch_gd`, `stochastic_gd`, `mbgd_gd`, `momentum_gd`, `adam_gd`）與統一接口 `optimize()` 皆支援 `l2_lambda` 參數（預設 `0.0`）：
+五種優化器（`batch_gd`, `stochastic_gd`, `mini_gd`, `momentum_gd`, `adam_gd`）與統一接口 `optimize()` 皆支援 `l2_lambda` 參數（預設 `0.0`）：
 ```bash
 # 使用預設 BGD 搭配 L2 正則化 (lambda = 0.01)
 ./src/logreg_train.py data/dataset_train.csv --lambda 0.01
@@ -350,10 +350,64 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 
 ---
 
-### Bonus 5: 自我驗證與口試答辯評估工具 (`src/evaluate.py`)
+### Bonus 5: 自動化測試與口試答辯驗證套件 (`tester/tester.py`)
 
-- **實作設計**：
-  提供 5-Fold 交叉驗證（Cross-Validation）、混淆矩陣（Confusion Matrix）、Precision / Recall / F1-Score 以及 `sklearn.metrics.accuracy_score` 驗證輸出，確保模型在各折驗證上穩定超越 $\ge 98.0\%$ 門檻。
+為了驗證**軟體工程完整性（Code Integrity）**與**底層數學正確性（Mathematical Meaning）**，`tester/tester.py` 設計了 5 個獨立的驗證模組（支援 `./tester/tester.py --only [describe|stats|ast|l2|e2e]`）：
+
+#### TEST 1 (`--only describe`)：Mandatory 8 大描述性統計指標 vs. 官方 `pandas.DataFrame.describe()`
+- **如何確認程式碼完整性 (Code Integrity)**：
+  動態呼叫 `describe(df, include_bonus=False)` 計算 `dataset_train.csv` 全部 14 個數值特徵的 8 項基本指標（`Count`, `Mean`, `Std`, `Min`, `25%`, `50%`, `75%`, `Max`），並與官方 `pandas.DataFrame.describe()` 進行矩陣逐元素比對（`np.allclose(rtol=1e-9, atol=1e-9)`），同時輸出**最大絕對誤差（Max Absolute Error）**與**最大相對誤差（Max Relative Error）**。
+- **背後的數學意義 (Mathematical Meaning)**：
+  - **貝索校正（Bessel's Correction, 自由度 $N - 1$）**：驗證樣本標準差採用無偏估計量（Unbiased Estimator）$s = \sqrt{\frac{1}{n-1}\sum_{i=1}^n (x_i - \bar{x})^2}$，而非母體標準差的分母 $n$。當樣本取自未知母體時，樣本均值 $\bar{x}$ 已經消耗了 1 個自由度，除以 $n - 1$ 才能使樣本變異數的期望值 $\mathbb{E}[s^2] = \sigma^2$。
+  - **Hyndman–Fan Type 7 分位數線性插值法**：驗證對於排序後的有效樣本 $x_{(0)} \le \dots \le x_{(n-1)}$ 與分位點 $p \in \{0.25, 0.50, 0.75\}$，虛擬索引 $h = p(n - 1)$ 拆解為整數部 $i = \lfloor h \rfloor$ 與小數部 $f = h - i$，並滿足線性插值公式 $Q(p) = x_{(i)} + f \cdot (x_{(i+1)} - x_{(i)})$。
+  - **IEEE-754 雙精度浮點數機器псилон（Machine Epsilon, $\epsilon_{\text{mach}} = 2^{-53} \approx 1.11 \times 10^{-16}$）**：在 64 位元浮點數運算中，累加順序的差異會在尾數（Mantissa）最後一位產生 $O(\epsilon_{\text{mach}})$ 的捨入差異。當特徵數量級極大（如 `Arithmancy` 的平均數 $\bar{x} \approx 4.96 \times 10^4$）時，1 ULP（Unit in the Last Place，最小有效位單位）會隨數量級放大為 $\bar{x} \cdot \epsilon_{\text{mach}} \approx 10^{-11}$。透過同時檢驗**相對誤差**（$\frac{|x_{\text{ours}} - x_{\text{ref}}|}{|x_{\text{ref}}|} \le 1.88 \times 10^{-15}$），可嚴格證明手寫統計迴圈與 Pandas 底層 C 語言實作在硬體浮點數精度極限下完全等價。
+
+#### TEST 2 (`--only stats`)：Bonus 1 進階統計指標、皮爾森相關係數與退化邊界測試
+- **如何確認程式碼完整性 (Code Integrity)**：
+  1. 將 `src/utils/stats.py` 實作的 7 項進階指標（`var`, `range`, `iqr`, `skew`, `kurt`, `missing%`, `unique`）及 `pearson_corr()` 與 Pandas/NumPy 官方公式逐欄比對。
+  2. 構造極端退化資料集（Edge Cases）：**全空值欄（All-`NaN`, $n = 0$）**、**單一元素欄（$n = 1$）**、與**常數零變異欄（$[42, 42, 42, 42], s = 0$）**，逐一測試所有統計函數，確保無任何 `ZeroDivisionError`、`IndexError` 或崩潰。
+- **背後的數學意義 (Mathematical Meaning)**：
+  - **樣本變異數（$s^2$）的平方尺度效應**：變異數將測量單位平方，使得 `Arithmancy` 的變異數高達 $s^2 \approx 2.78 \times 10^8$。在此數量級下，雙精度浮點數的 $1\text{ ULP} = 2.78 \times 10^8 \times 2^{-53} \approx 5.96 \times 10^{-8}$。因此絕對誤差 `5.96e-08` 換算為**相對誤差僅為 $2.15 \times 10^{-16}$**，代表手寫雙迴圈與向量化實作在 53 bits 尾數上僅差最後 1 個 bit。
+  - **高階標準化中心動差（Central Moments）與自由度門檻**：
+    - **二階動差（變異數 $s^2$ / 標準差 $s$）**：分母含 $n - 1$，故樣本數必須滿足 $n \ge 2$。
+    - **三階動差（Fisher–Pearson 修正樣本偏度 $g_1$）**：
+      $$g_1 = \frac{n}{(n-1)(n-2)} \sum_{i=1}^n \left(\frac{x_i - \bar{x}}{s}\right)^3$$
+      分母含 $(n-1)(n-2)$ 以校正小樣本偏誤，故數學上嚴格要求 $n \ge 3$ 且 $s > 0$。
+    - **四階動差（樣本超額峰度 Excess Kurtosis $g_2$）**：
+      $$g_2 = \frac{n(n+1)}{(n-1)(n-2)(n-3)}\sum_{i=1}^n \left(\frac{x_i - \bar{x}}{s}\right)^4 - \frac{3(n-1)^2}{(n-2)(n-3)}$$
+      扣除標準常態分佈 $\mathcal{N}(0,1)$ 的基準峰度 $3$，且無偏校正項分母含 $(n-2)(n-3)$，故嚴格要求 $n \ge 4$ 且 $s > 0$。
+  - **零變異數奇異點（Singularity when $s = 0$）**：當隨機變數為常數 $X = c$ 時，所有中心動差 $\mu_k = \mathbb{E}[(X - \mu)^k] = 0$，此時標準化動差 $\frac{\mu_k}{\sigma^k} = \frac{0}{0}$ 以及皮爾森相關係數 $r = \frac{\text{Cov}(X, Y)}{\sigma_X \sigma_Y} = \frac{0}{0}$ 在數學上皆為未定義（Indeterminate Form）。測試確認程式能優雅攔截 $s = 0$ 並回傳 `NaN`。
+  - **完全共線性證明（`pearson_corr`）**：驗證 `Astronomy` 與 `Defense Against the Dark Arts` 的皮爾森相關係數 $r = -1.000000$（相對誤差 $2.22 \times 10^{-16}$），從線性代數角度證明兩特徵構成秩為 1（Rank-1）的完全負仿射變換（$Y = -aX + b$），資訊完全重疊。
+
+#### TEST 3 (`--only ast`)：AST 抽象語法樹靜態合規掃描（No Heavy Lifting 驗證）
+- **如何確認程式碼完整性 (Code Integrity)**：
+  使用 Python 內建的 `ast` 模組將 `src/describe.py` 與 `src/utils/stats.py` 解析為**抽象語法樹（Abstract Syntax Tree, `ast.parse`）**，並遍歷所有語法節點（`ast.walk`）。針對每一個函式呼叫節點（`ast.Call` 的 `func.id` 與 `func.attr`），驗證完全沒有調用任何禁用內建統計函式（`describe`, `mean`, `std`, `var`, `min`, `max`, `percentile`, `quantile`, `median`, `skew`, `kurt`, `corr`, `nunique`）。
+- **背後的數學意義 (Mathematical Meaning)**：
+  相較於單純的文字搜尋（`grep` 容易被註解誤導或被變數別名繞過），AST 語法樹直接檢驗程式語言的**上下文無關文法（Context-Free Grammar）推導結構**。通過 AST 靜態分析證明所有統計估計量 100% 是由最基礎的四則運算（$\sum, +, -, \times, \div$、次方與比較排序）從零建構而成。
+
+#### TEST 4 (`--only l2`)：Sigmoid 極端值數值穩定度與 $L_2$ 正則化（Weight Decay）數學驗證
+- **如何確認程式碼完整性 (Code Integrity)**：
+  1. 將極端對數勝算比（Logits）$z = [-1000.0, 0.0, 1000.0]$ 輸入 `sigmoid()`，確認不產生 `OverflowError` 或 `NaN`，且精確回傳 $[0.0, 0.5, 1.0]$。
+  2. 檢驗 `l2_penalty(w, lambda_=0.5, m=10)` 與解析解 $\frac{\lambda}{2m}\|w\|_2^2 = 0.725$ 完全一致。
+  3. 在固定合成資料上執行 1 步批次梯度下降（1-Step BGD），對比無正則化（$\lambda = 0.0$）與強正則化（$\lambda = 10.0$），嚴格斷言兩項數學不變量（Invariants）：
+     - 截距項（Bias $\theta_0$ / `b`）的更新量**完全相同**（$\Delta b = 0.000\text{e+}00$）。
+     - 特徵權重向量的歐幾里得範數嚴格收縮（$\|w_{\lambda=10}\|_2 < \|w_{\lambda=0}\|_2$）。
+- **背後的數學意義 (Mathematical Meaning)**：
+  - **指數溢位防護（Exponential Overflow Prevention）**：在 $\sigma(z) = \frac{1}{1 + e^{-z}}$ 中，當 $z = -1000$ 時，$e^{-z} = e^{1000}$ 會遠超 IEEE-754 雙精度浮點數上限（$\approx 1.798 \times 10^{308} \approx e^{709.78}$）。透過預先將 $z$ 截斷（Clip）於 $[-500, 500]$，使 $e^{-z} \le e^{500} \approx 1.40 \times 10^{217}$ 保持在有限浮點數範圍內，同時 $\frac{1}{1 + e^{500}}$ 在雙精度下精確收斂至漸近極限 $0.0$。
+  - **為何截距項 $\theta_0$ 不懲罰，以及 $L_2$ 如何導出權重衰減（Weight Decay）**：
+    加入 $L_2$ 正則化後的目標函數為 $J(\theta) = -\frac{1}{m}\sum_{i=1}^m \left[y^{(i)}\log h_\theta(x^{(i)}) + (1-y^{(i)})\log(1-h_\theta(x^{(i)}))\right] + \frac{\lambda}{2m}\sum_{j=1}^n \theta_j^2$。對特徵權重 $\theta_j$（$j \ge 1$）求偏導並展開梯度更新式：
+    $$\theta_j^{(t+1)} = \theta_j^{(t)} - \alpha \left( \frac{1}{m}\sum_{i=1}^m (h_\theta(x^{(i)}) - y^{(i)})x_j^{(i)} + \frac{\lambda}{m}\theta_j^{(t)} \right) = \underbrace{\left(1 - \frac{\alpha\lambda}{m}\right)}_{\text{Weight Decay 衰減因子} < 1} \theta_j^{(t)} - \frac{\alpha}{m}\sum_{i=1}^m (h_\theta(x^{(i)}) - y^{(i)})x_j^{(i)}$$
+    可見每一步迭代都會先將特徵權重向量 $w$ 向原點等比例壓縮 $(1 - \frac{\alpha\lambda}{m})$ 倍，限制決策超平面的 Lipschitz 常數（平滑度），防止共線特徵權重無限膨脹導致過度擬合（Overfitting）。反之，截距項 $\theta_0$（$j = 0$）僅負責決策超平面 $w^T x + \theta_0 = 0$ 的整體平移（決定各學院先驗基準機率），不影響對輸入特徵微小擾動的敏感度；若對 $\theta_0$ 進行懲罰，反而會引入系統性偏差（Systematic Bias）。
+
+#### TEST 5 (`--only e2e`)：端到端多類別分類流水線、五大優化器收斂與混淆矩陣評估
+- **如何確認程式碼完整性 (Code Integrity)**：
+  自動備份並於測試後無損還原工作區檔案（`modele.csv`, `model_weights.csv`, `houses.csv`），透過子程序完整執行 `src/logreg_train.py` $\rightarrow$ `src/logreg_predict.py` 流水線，遍歷全部 5 種優化器（`bgd`, `sgd`, `mini`, `momentum`, `adam`）與 `--lambda 0.01`，驗證所有組合皆超越 **98.0% 準確率門檻**（實測皆達 **98.94%**），列印多類別分類報告（Classification Report）與混淆矩陣（Confusion Matrix），最後驗證針對未知測試集 `dataset_test.csv` 產生的 `houses.csv` 格式（標頭為 `Index,Hogwarts House`、共 400 筆預測、0 個 `NaN` 空值）。
+- **背後的數學意義 (Mathematical Meaning)**：
+  - **對數損失的全局凸性（Global Convexity）與跨優化器收斂一致性**：二元邏輯回歸損失函數的海森矩陣（Hessian Matrix）為 $H = \frac{1}{m}X^T D X$，其中對角矩陣元素 $D_{ii} = h_\theta(x^{(i)})(1 - h_\theta(x^{(i)})) > 0$。對任意非零向量 $v$，二次型 $v^T H v = \frac{1}{m}\|D^{1/2}Xv\|_2^2 \ge 0$ 恆為半正定（加入 $L_2$ 後為嚴格正定 $H + \frac{\lambda}{m}I \succ 0$）。這保證了損失曲面不存在局部極小值陷阱——無論採用全批次確定性梯度（`bgd`）、單樣本隨機梯度（`sgd`）、小批次梯度（`mini`）、指數加權動量（`momentum`）或自適應一階/二階動差預優化（`adam`），五種軌跡最終皆收斂至同一個全局最優盆地（訓練集準確率 **98.94%**，1600 名學生中精確分類 1583 人）。
+  - **多類別混淆矩陣（Confusion Matrix）與 Precision / Recall / $F_1$-Score**：
+    設 $4 \times 4$ 混淆矩陣為 $C$，其中 $C_{i,j}$ 代表真實學院為 $i$、經 One-vs-All 最大後驗機率決策規則 $\hat{y} = \arg\max_{k \in \{1..4\}} \sigma(x^T w^{(k)} + b^{(k)})$ 預測為學院 $j$ 的學生人數：
+    $$\text{Accuracy} = \frac{\sum_{k=1}^4 C_{k,k}}{\sum_{i=1}^4 \sum_{j=1}^4 C_{i,j}}, \quad \text{Precision}_k = \frac{C_{k,k}}{\sum_{i=1}^4 C_{i,k}}, \quad \text{Recall}_k = \frac{C_{k,k}}{\sum_{j=1}^4 C_{k,j}}, \quad F_{1,k} = \frac{2 \cdot \text{Precision}_k \cdot \text{Recall}_k}{\text{Precision}_k + \text{Recall}_k}$$
+    單看整體 Accuracy 可能掩蓋類別不平衡問題（例如 `Hufflepuff` 有 529 人，而 `Slytherin` 僅 303 人）；透過驗證四個學院各自的 $\text{Precision}_k$、$\text{Recall}_k$ 與調和平均數 $F_{1,k}$ 皆高達 $0.98 \sim 0.99$，證明分類器在四個類別上皆具備極高且均衡的鑑別力。
 
 ---
 
@@ -387,7 +441,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
   - [Bonus 2: Other Optimization Algorithms in `src/utils/optimizers.py` — Math & Advantages](#bonus-2-other-optimization-algorithms-in-srcutilsoptimizerspy--math--advantages)
   - [Bonus 3: $L_2$ Regularization (Ridge)](#bonus-3-l_2-regularization-ridge)
   - [Bonus 4: Learning Curve Visualization & Early Stopping](#bonus-4-learning-curve-visualization--early-stopping)
-  - [Bonus 5: Self-Evaluation & Defense Script (`src/evaluate.py`)](#bonus-5-self-evaluation--defense-script-srcevaluatepy)
+  - [Bonus 5: Automated Test & Defense Verification Suite (`tester/tester.py`)](#bonus-5-automated-test--defense-verification-suite-testertesterpy)
 
 ---
 
@@ -679,7 +733,7 @@ To penalize large feature weights to prevent overfitting. The predicted probabil
 
 #### 2. Mathematical Formulation & "Weight Decay" Derivation
 - **Step 1: Add the Squared Weight Penalty to the Cost Function** (implemented via `l2_penalty()` in `src/utils/optimizers.py`):
-  $$J_{\text{reg}}(w, b) = \underbrace{J(w, b)}_{\text{Original Cross-Entropy}} + \underbrace{\frac{\lambda}{2m} \sum_{j=1}^{n} w_j^2}_{\text{L2 Penalty}}$$
+  $$J_{\text{reg}}(w, b) = \underbrace{J(w, b)}_{\text{Original Log Loss}} + \underbrace{\frac{\lambda}{2m} \sum_{j=1}^{n} w_j^2}_{\text{L2 Penalty}}$$
   - **$\lambda \ge 0$ (`--lambda` CLI flag)**: Controls regularization strength. When $\lambda = 0$, it reduces to standard logistic regression; larger $\lambda$ penalizes large weights more heavily (dividing by $2$ cancels the exponent $2$ upon differentiation).
 - **Step 2: Induce "Weight Decay" During Gradient Updates**:
   Differentiating with respect to feature weights $w_j\ (j \ge 1)$ adds a linear penalty term $\frac{\lambda}{m} w_j$:
@@ -695,7 +749,7 @@ To penalize large feature weights to prevent overfitting. The predicted probabil
 >    - $L_2$ applies a single uniform penalty $\lambda$ across $\sum w_j^2$. Without standardization, large-scale features (`Arithmancy` in the tens of thousands) naturally have tiny weights $w_j$, whereas small-scale features (`Herbology` in $[-10, 10]$) require larger weights $w_j$—causing $L_2$ to unfairly penalize small-scale features. Z-score standardization puts all features on the same scale so $\lambda$ penalizes them fairly.
 
 #### 3. CLI Usage Examples
-All 5 optimizers (`batch_gd`, `stochastic_gd`, `mbgd_gd`, `momentum_gd`, `adam_gd`) and `optimize()` accept `l2_lambda` (default `0.0`):
+All 5 optimizers (`batch_gd`, `stochastic_gd`, `mini_gd`, `momentum_gd`, `adam_gd`) and `optimize()` accept `l2_lambda` (default `0.0`):
 ```bash
 # Default BGD with L2 regularization (lambda = 0.01)
 ./src/logreg_train.py data/dataset_train.csv --lambda 0.01
@@ -715,7 +769,61 @@ All 5 optimizers (`batch_gd`, `stochastic_gd`, `mbgd_gd`, `momentum_gd`, `adam_g
 
 ---
 
-### Bonus 5: Self-Evaluation & Defense Script (`src/evaluate.py`)
+### Bonus 5: Automated Test & Defense Verification Suite (`tester/tester.py`)
 
-- **Design**:
-  - Runs 5-Fold Cross-Validation and prints the Confusion Matrix, Precision, Recall, F1-Score, and `sklearn.metrics.accuracy_score` ($\ge 98.0\%$).
+To rigorously validate both **software engineering integrity** and **mathematical correctness**, `tester/tester.py` is structured into 5 independent verification modules (`./tester/tester.py --only [describe|stats|ast|l2|e2e]`):
+
+#### TEST 1 (`--only describe`): Mandatory Descriptive Statistics vs. Official `pandas.DataFrame.describe()`
+- **How It Confirms Code Integrity**:
+  Dynamically calls `describe(df, include_bonus=False)` on all 14 numeric columns of `dataset_train.csv` and compares each of the 8 mandatory metrics (`Count`, `Mean`, `Std`, `Min`, `25%`, `50%`, `75%`, `Max`) against `pandas.DataFrame.describe()` using `np.allclose(rtol=1e-9, atol=1e-9)`. It prints both the **Maximum Absolute Error** ($\max |x_{\text{ours}} - x_{\text{ref}}|$) and **Maximum Relative Error** ($\max \frac{|x_{\text{ours}} - x_{\text{ref}}|}{|x_{\text{ref}}|}$).
+- **Mathematical Meaning**:
+  - **Bessel's Correction ($N - 1$)**: Confirms that sample standard deviation uses the unbiased estimator $s = \sqrt{\frac{1}{n-1}\sum_{i=1}^n (x_i - \bar{x})^2}$ rather than the biased population denominator $n$.
+  - **Hyndman–Fan Type 7 Linear Quantile Interpolation**: Confirms that for any quantile $p \in \{0.25, 0.50, 0.75\}$ on sorted valid observations $x_{(0)} \le \dots \le x_{(n-1)}$, the virtual index $h = p(n - 1)$ is decomposed into integer part $i = \lfloor h \rfloor$ and fractional part $f = h - i$, evaluating $Q(p) = x_{(i)} + f \cdot (x_{(i+1)} - x_{(i)})$.
+  - **IEEE-754 `float64` Machine Epsilon ($\epsilon_{\text{mach}} = 2^{-53} \approx 1.11 \times 10^{-16}$)**: In 64-bit floating-point arithmetic, summation order affects the least significant bits by $O(\epsilon_{\text{mach}})$. For large-magnitude features like `Arithmancy` ($\bar{x} \approx 4.96 \times 10^4$), 1 ULP (Unit in the Last Place) scales with the magnitude ($\bar{x} \cdot \epsilon_{\text{mach}} \approx 10^{-11}$). Measuring **Relative Error** ($\le 1.88 \times 10^{-15}$) proves that our from-scratch loops match C-level Pandas routines down to hardware floating-point limits.
+
+#### TEST 2 (`--only stats`): Bonus 1 Extended Statistical Metrics, Pearson's $r$ & Degenerate Edge Cases
+- **How It Confirms Code Integrity**:
+  1. Compares all 7 Bonus 1 metrics (`var`, `range`, `iqr`, `skew`, `kurt`, `missing%`, `unique`) and `pearson_corr()` against Pandas/NumPy reference values across all 14 features.
+  2. Feeds degenerate inputs into every function in `src/utils/stats.py`—an **all-`NaN` column** ($n = 0$), a **single observation** ($n = 1$), and a **constant column** ($[42, 42, 42, 42]$ where $s = 0$)—confirming zero `ZeroDivisionError`, `IndexError`, or `ValueError` crashes.
+- **Mathematical Meaning**:
+  - **Scale of Sample Variance ($s^2$)**: Because variance squares the units of measurement, `Arithmancy` has $s^2 \approx 2.78 \times 10^8$. At this scale, $1\text{ ULP} = 2.78 \times 10^8 \times 2^{-53} \approx 5.96 \times 10^{-8}$. An absolute discrepancy of $5.96 \times 10^{-8}$ corresponds to a **relative error of $2.15 \times 10^{-16}$**, which is literally a 1-bit difference in the 53-bit IEEE-754 mantissa.
+  - **Higher-Order Standardized Central Moments & Degrees-of-Freedom Thresholds**:
+    - **Sample Variance / Std ($k=2$)**: Requires $n \ge 2$ so that $n - 1 > 0$.
+    - **Adjusted Fisher–Pearson Sample Skewness ($g_1, k=3$)**:
+      $$g_1 = \frac{n}{(n-1)(n-2)} \sum_{i=1}^n \left(\frac{x_i - \bar{x}}{s}\right)^3$$
+      Requires $n \ge 3$ (since $n - 2$ is in the denominator) and $s > 0$.
+    - **Sample Excess Kurtosis ($g_2, k=4$)**:
+      $$g_2 = \frac{n(n+1)}{(n-1)(n-2)(n-3)}\sum_{i=1}^n \left(\frac{x_i - \bar{x}}{s}\right)^4 - \frac{3(n-1)^2}{(n-2)(n-3)}$$
+      Subtracts the normal baseline kurtosis of $3$ and requires $n \ge 4$ (since $n - 3$ is in the denominator) and $s > 0$.
+  - **Zero-Variance Singularity ($s = 0$)**: For a constant random variable $X = c$, all central moments $\mu_k = \mathbb{E}[(X - \mu)^k] = 0$. Consequently, standardized moments $\frac{\mu_k}{\sigma^k} = \frac{0}{0}$ and Pearson correlation $r = \frac{\text{Cov}(X, Y)}{\sigma_X \sigma_Y} = \frac{0}{0}$ are mathematically undefined (`NaN`), which our edge-case guards explicitly enforce.
+  - **Perfect Collinearity Detection**: Verifies $r(\text{Astronomy}, \text{Defense Against the Dark Arts}) = -1.000000$, proving that the two features lie on an exact negative affine line ($Y = -aX + b$) with rank-1 redundancy.
+
+#### TEST 3 (`--only ast`): Static AST Compliance Audit ("No Heavy Lifting")
+- **How It Confirms Code Integrity**:
+  Parses the source files `src/describe.py` and `src/utils/stats.py` into Python's **Abstract Syntax Tree (`ast.parse`)** and walks every syntax node (`ast.walk`). It inspects all function call nodes (`ast.Call` via `func.id` and `func.attr`) to verify that zero forbidden aggregators (`describe`, `mean`, `std`, `var`, `min`, `max`, `percentile`, `quantile`, `median`, `skew`, `kurt`, `corr`, `nunique`) exist anywhere in executable code.
+- **Mathematical Meaning**:
+  Unlike regex or text search (which can be bypassed by variable aliasing or triggered falsely by comments), an AST represents the formal context-free grammar derivation tree of the source code. Passing the AST audit proves that every statistical quantity in our codebase is constructed strictly from primitive algebraic operations ($+, -, \times, \div$, power, and comparison sorting).
+
+#### TEST 4 (`--only l2`): Sigmoid Numerical Stability & $L_2$ Regularization (Weight Decay) Proof
+- **How It Confirms Code Integrity**:
+  1. Evaluates `sigmoid(np.array([-1000.0, 0.0, 1000.0]))` to ensure no runtime `OverflowError` or `NaN` occurs and verifies exact outputs $[0.0, 0.5, 1.0]$.
+  2. Verifies `l2_penalty(w, lambda_=0.5, m=10)` against the closed-form value $\frac{\lambda}{2m}\|w\|_2^2 = 0.725$.
+  3. Runs a controlled 1-step Batch Gradient Descent update comparing $\lambda = 0.0$ against $\lambda = 10.0$ on identical synthetic data, asserting that:
+     - The bias parameter $\theta_0$ (`b`) is **strictly identical** ($\Delta b = 0.000\text{e+}00$).
+     - The Euclidean norm of the feature weights strictly shrinks ($\|w_{\lambda=10}\|_2 < \|w_{\lambda=0}\|_2$).
+- **Mathematical Meaning**:
+  - **Asymptotic Clipping of Sigmoid**: For $z = -1000$, computing $e^{-z} = e^{1000}$ directly overflows IEEE-754 `float64` ($\max \approx 1.798 \times 10^{308} \approx e^{709.78}$). By clipping $z \in [-500, 500]$ before exponentiation, $e^{-z} \le e^{500} \approx 1.40 \times 10^{217}$ stays safely finite while $\frac{1}{1 + e^{500}}$ rounds to $0.0$ within `float64` precision.
+  - **Why Bias $\theta_0$ Is Excluded & How $L_2$ Induces Weight Decay**:
+    With the $L_2$-regularized objective $J(\theta) = -\frac{1}{m}\sum_{i=1}^m \left[y^{(i)}\log h_\theta(x^{(i)}) + (1-y^{(i)})\log(1-h_\theta(x^{(i)}))\right] + \frac{\lambda}{2m}\sum_{j=1}^n \theta_j^2$, taking the partial derivative with respect to feature weight $\theta_j$ ($j \ge 1$) yields:
+    $$\theta_j^{(t+1)} = \theta_j^{(t)} - \alpha \left( \frac{1}{m}\sum_{i=1}^m (h_\theta(x^{(i)}) - y^{(i)})x_j^{(i)} + \frac{\lambda}{m}\theta_j^{(t)} \right) = \underbrace{\left(1 - \frac{\alpha\lambda}{m}\right)}_{\text{Weight Decay Factor}} \theta_j^{(t)} - \frac{\alpha}{m}\sum_{i=1}^m (h_\theta(x^{(i)}) - y^{(i)})x_j^{(i)}$$
+    Each gradient step contracts the weight vector $w$ toward the origin by $(1 - \frac{\alpha\lambda}{m}) < 1$, shrinking its $L_2$ norm $\|w\|_2$ to prevent overfitting and collinear weight explosion. Conversely, the intercept $\theta_0$ ($j = 0$) only translates the decision boundary hyperplane $w^T x + \theta_0 = 0$ without affecting its orientation or sensitivity to input perturbations; keeping $\frac{\partial}{\partial \theta_0}\left(\frac{\lambda}{2m}\|w\|_2^2\right) = 0$ prevents artificial bias in the baseline log-odds.
+
+#### TEST 5 (`--only e2e`): End-to-End Multi-Class Pipeline, Optimizer Convergence & Confusion Matrix
+- **How It Confirms Code Integrity**:
+  Safely backs up and restores existing workspace files (`modele.csv`, `model_weights.csv`, `houses.csv`), executes `src/logreg_train.py` and `src/logreg_predict.py` via subprocess across all 5 optimizers (`bgd`, `sgd`, `mini`, `momentum`, `adam`) plus `--lambda 0.01`, checks that every configuration exceeds the **98.0% accuracy threshold** (reaching **98.94%** on `dataset_train.csv`), prints the multi-class Classification Report and Confusion Matrix, and validates `houses.csv` generated from `dataset_test.csv` (exact `Index,Hogwarts House` header, $400$ rows, $0$ `NaN`s, all predictions valid house names).
+- **Mathematical Meaning**:
+  - **Global Convexity of Log Loss Across Optimizers**: The Hessian matrix of binary logistic loss is $H = \frac{1}{m}X^T D X$ where $D = \text{diag}(h_\theta(x^{(i)})(1 - h_\theta(x^{(i)}))) \succ 0$. Because $v^T H v = \frac{1}{m}\|D^{1/2}Xv\|_2^2 \ge 0$ for all $v$, the loss surface is **convex** (and strictly convex under $L_2$ regularization). Thus, whether we follow full-batch deterministic gradients (`bgd`), noisy single-sample gradients (`sgd`), mini-batch estimates (`mini`), exponentially weighted velocity (`momentum`), or adaptive first/second moment preconditioning (`adam`), all trajectories converge to the same global optimum basin ($\approx 98.94\%$ accuracy).
+  - **Multi-Class Evaluation Metrics (Precision, Recall, $F_1$ & Confusion Matrix)**:
+    Given the $4 \times 4$ Confusion Matrix $C$ where $C_{i,j}$ is the number of students from true house $i$ classified into house $j$ via $\hat{y} = \arg\max_{k \in \{1..4\}} \sigma(x^T w^{(k)} + b^{(k)})$:
+    $$\text{Accuracy} = \frac{\sum_{k=1}^4 C_{k,k}}{\sum_{i=1}^4 \sum_{j=1}^4 C_{i,j}}, \quad \text{Precision}_k = \frac{C_{k,k}}{\sum_{i=1}^4 C_{i,k}}, \quad \text{Recall}_k = \frac{C_{k,k}}{\sum_{j=1}^4 C_{k,j}}, \quad F_{1,k} = \frac{2 \cdot \text{Precision}_k \cdot \text{Recall}_k}{\text{Precision}_k + \text{Recall}_k}$$
+    Inspecting $\text{Precision}_k$, $\text{Recall}_k$, and $F_{1,k} \approx 0.99$ across all 4 houses confirms that the classifier achieves balanced discriminative power across both majority (`Hufflepuff`, $n=529$) and minority (`Slytherin`, $n=303$) classes.

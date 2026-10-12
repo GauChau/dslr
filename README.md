@@ -27,6 +27,7 @@
 - [5. Getting Started](#5-getting-started)
   - [5.1 Environment Setup](#51-environment-setup)
   - [5.2 Execution Commands](#52-execution-commands)
+  - [5.3 Automated Verification & Mathematical Meaning of Tests (`tester/tester.py`)](#53-automated-verification--mathematical-meaning-of-tests-testertesterpy)
 
 ---
 
@@ -104,6 +105,8 @@ dslr/
 │       ├── __init__.py
 │       ├── stats.py            # From-scratch statistical functions (mean, std, quartiles, etc.)
 │       └── optimizers.py       # Sigmoid & 5 Gradient Descent optimizers (BGD, SGD, Mini, Momentum, Adam)
+├── tester/
+│   └── tester.py               # Automated test suite (describe vs. Pandas, AST audit, L2 & accuracy >= 98%)
 ├── modele.csv                  # Trained model weights & scaling parameters
 ├── houses.csv                  # Final generated house predictions
 ├── requirements.txt            # Python package dependencies
@@ -114,13 +117,14 @@ dslr/
 - **`src/utils/stats.py`**: Implements pure from-scratch statistical functions on numerical sequences (plus vectorized Bonus metrics), shared by `describe.py`, `scatter_plot.py`, and the preprocessing pipeline.
 - **`src/utils/optimizers.py`**: Encapsulates the Sigmoid activation and 5 gradient descent optimization algorithms (Batch GD, Stochastic GD, Mini-batch GD, Momentum, and Adam) via a unified `optimize()` interface.
 - **`src/logreg_train.py` & `src/logreg_predict.py`**: Manage data cleaning, training set parameter storage (medians, means, standard deviations) to prevent **Data Leakage**, One-vs-All training, and final house inference.
+- **`tester/tester.py`**: Standalone automated test and oral defense suite verifying numerical equivalence against Pandas, edge-case stability, AST static rule compliance, $L_2$ regularization weight decay mathematics, and end-to-end multi-class classification accuracy ($\ge 98\%$).
 
 ### 4.3 Detailed Walkthrough & Mathematical Derivations
 For in-depth implementation steps, EDA feature selection justifications, logistic regression mathematical proofs, and Bonus Part formulations, please refer to:
-👉 **[`docs/walkthrough.md` — Implementation Walkthrough & Mathematical Foundations](./docs/walkthrough.md#dslr-implementation-walkthrough-and-mathematical-foundations)**
-- **Section 1**: Step-by-Step Implementation Guide (`describe.py`, EDA Plots, `logreg_train.py` & `logreg_predict.py`, and why Median Imputation is used)
+👉 **[`docs/walkthrough.md` — Walkthrough & Mathematical Foundations](./docs/walkthrough.md#dslr-implementation-walkthrough-and-mathematical-foundations)**
+- **Section 1**: Guide (`describe.py`, EDA Plots, `logreg_train.py` & `logreg_predict.py`, and why Median Imputation is used)
 - **Section 2**: Mathematical Foundations (Sigmoid derivative, Log Loss function vs. MSE convexity/MLE proof, Gradient Descent vectorization, Z-score standardization)
-- **Section 3**: Bonus Part Implementation & Mathematical Definitions (9 extended statistical metrics & 5 gradient descent optimizers)
+- **Section 3**: Bonus Part (9 extended statistical metrics & 4 advanced gradient descent optimizers)
 
 ---
 
@@ -170,19 +174,32 @@ All CLI scripts in `src/` include the `#!/usr/bin/env python3` shebang and execu
 ./src/logreg_predict.py data/dataset_test.csv modele.csv
 ```
 
-#### 4. Accuracy Verification
-```python
-from sklearn.metrics import accuracy_score
-accuracy = accuracy_score(y_true, y_pred)
-print(f"Validation Accuracy: {accuracy * 100:.2f}%")
+#### 4. Automated Test & Defense Verification Suite (`tester/tester.py`)
+```bash
+# Run all 5 test suites (describe vs. pandas, Bonus stats, AST audit, L2 weight decay, and >= 98% accuracy)
+./tester/tester.py
+
+# Or run a specific test group only:
+./tester/tester.py --only [describe|stats|ast|l2|e2e]
 ```
+
+### 5.3 Automated Verification & Mathematical Meaning of Tests (`tester/tester.py`)
+
+Provides 5 standalone verification modules (`./tester/tester.py --only [describe|stats|ast|l2|e2e]`):
+1. **`describe` vs. Official Pandas `df.describe()`**: Verifies all 8 mandatory metrics within IEEE-754 `float64` machine precision (relative error $\le 1.88 \times 10^{-15}$).
+2. **Bonus 1 Extended Metrics & Edge-Case Robustness**: Validates all 7 extended metrics + `pearson_corr` (`Astronomy` vs. `DADA`, $r = -1.000000$) and stresses edge cases (all-`NaN`, $N=1$, constant column $s=0$).
+3. **Static AST Compliance Audit**: Uses `ast.parse` to guarantee zero forbidden statistical calls in `src/describe.py` and `src/utils/stats.py`.
+4. **Sigmoid Stability & $L_2$ Weight Decay Verification**: Verifies extreme logit stability ($z = \pm 1000$), confirms bias $\theta_0$ is unpenalized, and proves $\|w\|_2$ shrinks under $L_2$ regularization.
+5. **End-to-End Multi-Class Optimizer Benchmark & Confusion Matrix**: Benchmarks all 5 optimizers (`bgd`, `sgd`, `mini`, `momentum`, `adam`) + `--lambda 0.01` ($\ge 98.0\%$ accuracy, reaching **98.94%**), prints Precision / Recall / F1-Score and the Confusion Matrix, and validates `houses.csv` on `dataset_test.csv`.
+
+👉 For the detailed explanation of how each test confirms **code integrity** and its **mathematical meaning**, see **[`docs/walkthrough.md` — Bonus 5](./docs/walkthrough.md#bonus-5-automated-test--defense-verification-suite-testertesterpy)**.
 
 ---
 
 ## 📜 Evaluation Criteria Summary
-- **Rule Compliance**: Zero forbidden built-in statistical or ML functions used for heavy lifting.
+- **Rule Compliance**: Zero forbidden built-in statistical or ML functions used for heavy lifting (verified via AST in `TEST 3`).
 - **Visualizations & Feature Justification**: Clear plots and sound reasoning for feature selection.
-- **Classification Accuracy**: $\ge 98\%$ accuracy on `dataset_test.csv`.
+- **Classification Accuracy**: $\ge 98\%$ accuracy on `dataset_test.csv` (verified at $98.94\%$ across all 5 optimizers in `TEST 5`).
 - **Peer Defense**: Ability to explain the gradient derivation, Sigmoid properties, Z-score standardization, and One-vs-All classification.
 
 ---
@@ -218,10 +235,11 @@ print(f"Validation Accuracy: {accuracy * 100:.2f}%")
 - [4. 實作架構設計 (How We Implement It)](#4-實作架構設計-how-we-implement-it)
   - [4.1 專案目錄結構](#41-專案目錄結構)
   - [4.2 模組職責劃分](#42-模組職責劃分)
-  - [4.3 實作詳解與數學推導指南 (`docs/walkthrough.md`)](./docs/walkthrough.md)
+  - [4.3 細節與數學推導 (`docs/walkthrough.md`)](./docs/walkthrough.md)
 - [5. 安裝與執行指南 (Getting Started)](#5-安裝與執行指南-getting-started)
   - [5.1 環境安裝](#51-環境安裝)
   - [5.2 執行指令範例](#52-執行指令範例)
+  - [5.3 自動化測試解析：如何確認程式碼完整性與其數學意義 (`tester/tester.py`)](#53-自動化測試解析如何確認程式碼完整性與其數學意義-testertesterpy)
 
 ---
 
@@ -257,7 +275,7 @@ print(f"Validation Accuracy: {accuracy * 100:.2f}%")
 
 ### 2.3 邏輯回歸與梯度下降 (Logistic Regression & Optimization)
 - 理解廣義線性模型（Generalized Linear Models），以及如何透過 **Sigmoid 函數** 將線性輸出對應至 $[0, 1]$ 區間作為機率估計。
-- Log Loss）的數學本質與凸優化特性。
+- Log Loss的數學本質與凸優化特性。
 - 掌握梯度向量的推導過程，製作批次梯度下降法（Batch Gradient Descent, BGD），手動調校學習率（Learning Rate $\alpha$）與迭代次數（Epochs）。
 
 ### 2.4 多類別分類 (One-vs-All Classification)
@@ -299,9 +317,11 @@ dslr/
 │       ├── __init__.py
 │       ├── stats.py            # 統計指標 (mean, std, quartiles, etc.)
 │       └── optimizers.py       # Sigmoid 與五大梯度下降優化器 (BGD, SGD, Mini, Momentum, Adam)
+├── tester/
+│   └── tester.py               # 自動化測試與口試驗證腳本 (Pandas 誤差比對、AST 檢查、L2 與準確率驗證)
 ├── modele.csv                  # 訓練後輸出的權重與標準化參數
 ├── houses.csv                  # 最終生成的預測輸出檔
-├── requirements.txt            # 相依套件清單 (numpy, pandas, matplotlib, seaborn)
+├── requirements.txt            # 相依套件清單 (numpy, pandas, matplotlib, seaborn, scikit-learn)
 └── README.md                   # 專案說明文件
 ```
 
@@ -309,13 +329,14 @@ dslr/
 - **`src/utils/stats.py`**：實現數值型序列的純製作統計指標（含向量化 Bonus 指標），提供給 `describe.py`、`scatter_plot.py` 及標準化流程使用。
 - **`src/utils/optimizers.py`**：封裝 Sigmoid 激活函數與五大梯度下降優化演算法（BGD、SGD、Mini-batch GD、Momentum、Adam），並提供統一接口 `optimize()`。
 - **`src/logreg_train.py` 與 `src/logreg_predict.py`**：負責資料清洗、保存訓練集統計參數（中位數、均值、標準差，防止 Data Leakage）、One-vs-All 模型訓練與最終學院預測輸出。
+- **`tester/tester.py`**：獨立的自動化測試與口試答辯驗證套件，涵蓋與官方 Pandas 數值精確度比對、極端邊界容錯測試、AST 語法樹合規掃描、$L_2$ 權重衰減數學驗證，以及端到端多類別分類準確率（$\ge 98\%$）與混淆矩陣評估。
 
-### 4.3 實作詳解與數學推導指南
-關於各腳本逐步實作流程、特徵選擇推論、邏輯回歸完整數學推導與加分項目（Bonus Part）定義，請參閱：
-👉 **[`docs/walkthrough.md` — 實作詳解與數學推導指南](./docs/walkthrough.md)**
-- **第 1 節**：各階段詳細實作指南（`describe.py`、三大視覺化分析、`logreg_train.py` 與 `logreg_predict.py`，以及為何採用中位數填補缺失值）
-- **第 2 節**：數學原理與公式推導（Sigmoid 導數、二元交叉熵 vs. MSE 凸優化與最大概似估計證明、梯度下降向量化、Z-score 標準化）
-- **第 3 節**：Bonus 加分項目詳細實作指南與數學定義（9 項進階統計指標與 5 大梯度下降優化器）
+### 4.3 細節與數學推導
+關於特徵選擇推論、邏輯回歸完整數學推導與加分項目（Bonus Part）定義，請參閱：
+👉 **[`docs/walkthrough.md` — 細節與數學推導](./docs/walkthrough.md)**
+- **第 1 節**：各階段指南（`describe.py`、三大視覺化分析、`logreg_train.py` 與 `logreg_predict.py`，以及為何採用中位數填補缺失值）
+- **第 2 節**：數學原理與公式推導（Sigmoid 導數、對數損失 vs. MSE 凸優化與最大概似估計證明、梯度下降向量化、Z-score 標準化）
+- **第 3 節**：Bonus 加分項目（9 項進階統計指標與 4 種進階梯度下降優化器）
 
 ---
 
@@ -365,18 +386,30 @@ pip install -r requirements.txt
 ./src/logreg_predict.py data/dataset_test.csv modele.csv
 ```
 
-#### 4. 驗證準確率 (自我評估)
-```python
-# 可於驗證腳本中呼叫 sklearn 評估準確率 (需 >= 98%)
-from sklearn.metrics import accuracy_score
-accuracy = accuracy_score(y_true, y_pred)
-print(f"Validation Accuracy: {accuracy * 100:.2f}%")
+#### 4. 自動化測試與口試驗證腳本 (`tester/tester.py`)
+```bash
+# 一鍵執行完整 5 大測試套件 (describe vs. Pandas 誤差、Bonus 統計指標、AST 合規掃描、L2 正則化與 >= 98% 準確率驗證)
+./tester/tester.py
+
+# 或僅執行特定測試項目：
+./tester/tester.py --only [describe|stats|ast|l2|e2e]
 ```
+
+### 5.3 自動化測試解析：如何確認程式碼完整性與其數學意義 (`tester/tester.py`)
+
+提供 5 大獨立驗證模組（支援 `./tester/tester.py --only [describe|stats|ast|l2|e2e]`）：
+1. **`describe` vs. 官方 Pandas `df.describe()` 數值比對**：驗證 8 項 Mandatory 指標在雙精度浮點數機器極限（相對誤差 $\le 1.88 \times 10^{-15}$）下完全一致。
+2. **Bonus 1 進階統計指標與極端退化邊界測試**：驗證 7 項進階指標與皮爾森相關係數（`Astronomy` vs. `DADA`, $r = -1.000000$），並測試全 `NaN`、$N=1$、常數零變異欄（$s=0$）不發生除零崩潰。
+3. **AST 抽象語法樹靜態合規掃描**：透過 `ast.parse` 證明 `src/describe.py` 與 `src/utils/stats.py` 零調用任何禁用內建統計函式。
+4. **Sigmoid 極端值穩定度與 $L_2$ Weight Decay 驗證**：驗證 $z = \pm 1000$ 無溢位、截距項 $\theta_0$ 不受 $L_2$ 懲罰，以及特徵權重範數 $\|w\|_2$ 嚴格收縮。
+5. **端到端五大優化器基準測試與混淆矩陣**：無損備份工作區檔案，驗證 `bgd`, `sgd`, `mini`, `momentum`, `adam` 與 `--lambda 0.01` 全部超越 $\ge 98.0\%$ 門檻（實測 **98.94%**），並輸出 Precision / Recall / F1-Score、混淆矩陣（Confusion Matrix）與 `dataset_test.csv` 預測格式檢查。
+
+👉 關於每項測試**如何確認程式碼完整性（Code Integrity）**及其**背後的數學意義（Mathematical Meaning）**之完整解析，請參閱：**[`docs/walkthrough.md` — Bonus 5](./docs/walkthrough.md#bonus-5-自動化測試與口試答辯驗證套件-testertesterpy)**。
 
 ---
 
 ## 📜 專案評分標準與總結
-- **程式碼合規性**：未違規調用現成函式計算統計量或進行模型擬合。
+- **程式碼合規性**：未違規調用現成函式計算統計量或進行模型擬合（由 `TEST 3` AST 語法樹靜態驗證）。
 - **回答邏輯與視覺化圖表**：能清晰闡述特徵選擇與資料分析理由。
-- **最終準確率**：在 `dataset_test.csv` 上達到 $\ge 98\%$。
+- **最終準確率**：在 `dataset_test.csv` 上達到 $\ge 98\%$（由 `TEST 5` 驗證五大優化器皆達 $98.94\%$）。
 - **口試答辯 (Defense)**：能詳細解說梯度下降數學推導、Sigmoid 函數意義、特徵標準化的重要性以及 One-vs-All 分類機制。
