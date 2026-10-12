@@ -6,20 +6,20 @@
 
 # DSLR 實作詳解與數學推導指南
 ## 📖 目錄 (Table of Contents)
-- [1. 基礎項目](#1-各階段詳細實作指南-step-by-step-implementation)
+- [1. 基礎項目](#1-基礎項目)
   - [Part 1: 描述性統計 (`describe.py`)](#part-1-描述性統計-describepy)
   - [Part 2: 資料視覺化分析 (`histogram.py`, `scatter_plot.py`, `pair_plot.py`)](#part-2-資料視覺化分析-histogrampy-scatter_plotpy-pair_plotpy)
   - [Part 3: 訓練與預測 (`logreg_train.py`, `logreg_predict.py`)](#part-3-訓練與預測-logreg_trainpy-logreg_predictpy)
 - [2. 數學原理與公式推導](#2-數學原理與公式推導)
   - [2.0 什麼是「對數機率迴歸」(logistic regression)](#20-什麼是對數機率迴歸logistic-regression)
   - [2.1 Sigmoid 函數](#21-sigmoid-函數)
-  - [2.2 成本函數 (Cost Function / Binary Cross-Entropy)](#22-成本函數-cost-function--binary-cross-entropy)
-  - [2.3 梯度推導與權重更新 (Gradient Descent)](#23-梯度推導與權重更新-梯度下降-gradient-descent)
+  - [2.2 成本函數 (Cost Function)](#22-成本函數-cost-function)
+  - [2.3 梯度下降：批次梯度下降 (Batch Gradient Descent, BGD — `--opt bgd [default]`)](#23-梯度下降批次梯度下降-batch-gradient-descent-bgd----opt-bgd-default)
   - [2.4 特徵標準化 (Feature Standardization / Z-score)](#24-特徵標準化-feature-standardization--z-score)
 - [3. 加分項目](#3-加分項目)
-  - [Bonus 1: `src/utils/stats.py` 擴充統計指標與嚴謹數學定義](#bonus-1-srcutilsstatspy-擴充統計指標與嚴謹數學定義)
+  - [Bonus 1: `src/utils/stats.py` 擴充統計指標](#bonus-1-srcutilsstatspy-擴充統計指標)
   - [Bonus 2: `src/utils/optimizers.py` 各類梯度下降優化演算法與其優點](#bonus-2-srcutilsoptimizerspy-各類梯度下降優化演算法與其優點)
-  - [Bonus 3: 正則化機制 ($L_2$ Regularization / Ridge)](#bonus-3-正則化機制--regularization--ridge)
+  - [Bonus 3: 正則化機制 ($L_2$ Regularization / Ridge)](#bonus-3-正則化機制-l_2-regularization--ridge)
   - [Bonus 4: 學習曲線視覺化與 Early Stopping](#bonus-4-學習曲線視覺化與-early-stopping)
   - [Bonus 5: 自我驗證與口試答辯評估工具 (`src/evaluate.py`)](#bonus-5-自我驗證與口試答辯評估工具-srcevaluatepy)
 
@@ -48,7 +48,7 @@
 
 #### 2. `scatter_plot.py`
 - **核心問題**：*What are the two features that are similar?*
-- **作法**：手刻計算特徵兩兩之間的皮爾森相關係數（Pearson Correlation），找出相關係數絕對值最高（接近 $1$ 或 $-1$）的兩門課程，並依學院顏色繪製 2D 散布圖展示其強線性關係。
+- **作法**：製作計算特徵兩兩之間的皮爾森相關係數（Pearson Correlation），找出相關係數絕對值最高（接近 $1$ 或 $-1$）的兩門課程，並依學院顏色繪製 2D 散布圖展示其強線性關係。
 - **結論分析**：**`Astronomy`** 與 **`Defense Against the Dark Arts`** 呈現完美的負線性相關（$r \approx -1.0$）。高度共線性的特徵攜帶高度重複的資訊，保留其中一個即可，避免增加模型維度與多重共線性問題。
 
 #### 3. `pair_plot.py`
@@ -113,8 +113,8 @@ $$h_\theta(x) = g(\theta^T x) = \frac{1}{1 + e^{-\theta^T x}}$$
 其一階導數具備優良的數學性質：
 $$g'(z) = g(z)(1 - g(z))$$
 
-### 2.2 成本函數 (Cost Function / Binary Cross-Entropy)
-給定 $m$ 筆訓練樣本，邏輯回歸的損失函數為二元交叉熵損失（Binary Cross-Entropy / Log Loss）：
+### 2.2 成本函數 (Cost Function)
+給定 $m$ 筆訓練樣本，邏輯回歸的損失函數為對數損失（Log Loss）：
 $$J(\theta) = -\frac{1}{m} \sum_{i=1}^{m} \Big[ y^{(i)} \log(h_\theta(x^{(i)})) + (1 - y^{(i)}) \log(1 - h_\theta(x^{(i)})) \Big]$$
 
 - 當真實標籤 $y=1$ 時，若 $h_\theta(x) \to 0$，懲罰項趨近於無窮大 $\infty$。
@@ -122,7 +122,7 @@ $$J(\theta) = -\frac{1}{m} \sum_{i=1}^{m} \Big[ y^{(i)} \log(h_\theta(x^{(i)})) 
 - 此損失函數在參數空間內是嚴謹**凸函數（Convex）**，不存在局部極小值（Local Minima），能保證梯度下降收斂至全局最優解。
 
 > #### 💡 深入剖析：為什麼邏輯回歸使用此特定的交叉熵成本函數？（Why this Cost Function?）
-> 線性回歸通常使用均方誤差（MSE, Mean Squared Error），但邏輯回歸必須使用二元交叉熵損失（Binary Cross-Entropy Loss / Log Loss），核心原因包括：
+> 線性回歸通常使用均方誤差（MSE, Mean Squared Error），但邏輯回歸必須使用對數損失（Log Loss），核心原因包括：
 > 1. **凸優化保證（Convexity vs. Non-Convexity）**：
 >    - 若將線性回歸的 MSE 直接套用在邏輯回歸上，由於複合了非線性的 Sigmoid 函數 $h_\theta(x) = \frac{1}{1 + e^{-\theta^T x}}$，損失曲面將變成**非凸函數（Non-Convex）**。此時曲面充滿大量局部極小值（Local Minima）與梯度趨近零的鞍點／平原區（Plateaus），導致梯度下降容易卡在局部劣解。
 >    - 相反地，二元交叉熵損失與 Sigmoid 結合後的 Hessian 矩陣為半正定矩陣，在數學上證明為**凸函數（Convex Function）**。凸函數形如完美碗狀，「任何局部極小值即為全局最優解（Global Minimum）」，從根本上保證了梯度下降演算法一定能找到全局最優參數。
@@ -136,15 +136,15 @@ $$J(\theta) = -\frac{1}{m} \sum_{i=1}^{m} \Big[ y^{(i)} \log(h_\theta(x^{(i)})) 
 >      $$\frac{\partial J(\theta)}{\partial \theta_j} = \frac{1}{m} \sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x_j^{(i)}$$
 >      **誤差 $(h_\theta(x) - y)$ 越懸殊，梯度就越大，模型校正速度就越快**，確保了訓練的穩定與高效收斂。
 
-### 2.3 梯度推導與權重更新 (梯度下降)
-對參數 $\theta_j$ 求偏導：
-$$\frac{\partial J(\theta)}{\partial \theta_j} = \frac{1}{m} \sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x_j^{(i)}$$
-
-向量化矩陣形式（Vectorized Form）：
-$$\nabla_\theta J(\theta) = \frac{1}{m} X^T \left( g(X\theta) - y \right)$$
-
-同步權重更新規則（學習率為 $\alpha$）：
+### 2.3 梯度下降：批次梯度下降 (Batch Gradient Descent, BGD — `--opt bgd [default]`)
+- **定義**：
+  每個訓練週期使用**全部 $m$ 筆訓練樣本**計算真實平均梯度 $g_t$：
+  $$g_t = \nabla_\theta J(\theta) = \frac{1}{m} \sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x^{(i)} = \frac{1}{m} X^T (h_\theta(X) - y)$$
+  同步權重更新規則（學習率為 $\alpha$）：
 $$\theta := \theta - \alpha \nabla_\theta J(\theta) = \theta - \frac{\alpha}{m} X^T \left( g(X\theta) - y \right)$$
+- **優點與特性**：
+  - 梯度估計無雜訊，每一步都精確朝向全局最優解（Global Minimum）下降，收斂軌跡最平滑穩定。
+  - 缺點是每更新一次權重就必須遍歷整張資料表，在超大型資料集上單步運算成本高。
 
 ### 2.4 特徵標準化 (Feature Standardization / Z-score)
 各魔法課程成績的分數尺度與變異程度差異極大（例如 `Arithmancy` 分數高達數萬，而 `Herbology` 介於 $-10$ 至 $10$ 之間）。若不進行標準化，損失函數的等高線將呈現狹長扁平橢圓形，導致梯度下降劇烈震盪甚至發散。
@@ -166,9 +166,9 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 
 ---
 
-### Bonus 1: `src/utils/stats.py` 擴充統計指標與嚴謹數學定義
+### Bonus 1: `src/utils/stats.py` 擴充統計指標
 
-我們已在 `src/utils/stats.py` 與 `src/describe.py` 中利用 **「複用手刻基礎函式 + 底層 NumPy/Pandas 陣列向量化（Vectorization）」** 實作了以下 9 項進階統計與相關性指標，完全避開禁用函式並大幅提升運算速度。以下為各項指標之數學定義與口試答辯解析：
+我們已在 `src/utils/stats.py` 與 `src/describe.py` 中利用 **「複用製作基礎函式 + 底層 NumPy/Pandas 陣列向量化（Vectorization）」** 實作了以下 9 項進階統計與相關性指標，完全避開禁用函式並大幅提升運算速度。以下為各項指標之數學定義與口試答辯解析：
 
 #### 1. 無偏樣本變異數 (Unbiased Sample Variance — `dfvar`)
 - **定義**：
@@ -238,24 +238,15 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
   給定兩特徵欄位共同非空之配對觀測集 $\{(x_i, y_i)\}_{i=1}^{n}$，其樣本均值分別為 $\bar{x} = \frac{1}{n}\sum x_i$ 與 $\bar{y} = \frac{1}{n}\sum y_i$：
   $$r_{xy} = \frac{\sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum_{i=1}^{n} (x_i - \bar{x})^2} \sqrt{\sum_{i=1}^{n} (y_i - \bar{y})^2}} \in [-1, 1]$$
 - **統計意義**：
-  即標準化後的共變異數（$\frac{\text{Cov}(X, Y)}{\sigma_X \sigma_Y}$），衡量兩變數之間的**線性相關強度與方向**。當 $|r_{xy}| \to 1$ 時代表兩特徵高度共線性（如 `Astronomy` 與 `Defense Against the Dark Arts` 的 $r_{xy} = -1.0$），為 `scatter_plot.py` 提供完全合規的手刻計算核心。
+  即標準化後的共變異數（$\frac{\text{Cov}(X, Y)}{\sigma_X \sigma_Y}$），衡量兩變數之間的**線性相關強度與方向**。當 $|r_{xy}| \to 1$ 時代表兩特徵高度共線性（如 `Astronomy` 與 `Defense Against the Dark Arts` 的 $r_{xy} = -1.0$），為 `scatter_plot.py` 提供完全合規的製作計算核心。
 
 ---
 
 ### Bonus 2: `src/utils/optimizers.py` 各類梯度下降優化演算法與其優點
 
-我們已在 `src/utils/optimizers.py` 中實作了 5 種梯度下降優化演算法，並透過統一接口 `optimize()` 與 `src/logreg_train.py` 的 `--opt` 參數串接（支援 `--opt [bgd|sgd|mbgd|momentum|adam]`）。以下為各演算法之定義與核心優點：
+除了第 2.3 節預設的批次梯度下降（`--opt bgd`）外，我們在 `src/utils/optimizers.py` 中額外實作了 4 種進階梯度下降優化演算法，並透過統一接口 `optimize()` 與 `src/logreg_train.py` 的 `--opt` 參數串接（支援 `--opt [bgd|sgd|mini|momentum|adam]`）。以下為各演算法之定義與核心優點：
 
-#### 1. 批次梯度下降 (Batch Gradient Descent, BGD — `--opt bgd`)
-- **定義**：
-  每個訓練週期使用**全部 $m$ 筆訓練樣本**計算真實平均梯度 $g_t$：
-  $$g_t = \nabla_\theta J(\theta) = \frac{1}{m} \sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x^{(i)} = \frac{1}{m} X^T (h_\theta(X) - y)$$
-  $$\theta_{t+1} = \theta_t - \alpha g_t$$
-- **優點與特性**：
-  - 梯度估計無雜訊，每一步都精確朝向全局最優解（Global Minimum）下降，收斂軌跡最平滑穩定。
-  - 缺點是每更新一次權重就必須遍歷整張資料表，在超大型資料集上單步運算成本高。
-
-#### 2. 隨機梯度下降 (Stochastic Gradient Descent, SGD — `--opt sgd`)
+#### 1. 隨機梯度下降 (Stochastic Gradient Descent, SGD — `--opt sgd`)
 - **定義**：
   每個訓練週期先將樣本索引隨機洗牌（Shuffle），接著**每觀測 1 筆樣本 $(x^{(i)}, y^{(i)})$ 就立刻更新一次權重**：
   $$g_t = \left( h_\theta(x^{(i)}) - y^{(i)} \right) x^{(i)}$$
@@ -264,7 +255,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
   - **更新頻率極高**：在 $m = 1280$ 筆訓練集上，跑 1 個訓練週期就更新了 1280 次權重，初期下降速度極快！
   - 單筆梯度帶有的隨機雜訊（Stochastic Noise）在非凸問題中有助於跳脫局部極小值或鞍點，但在最優解附近會持續微幅震盪。
 
-#### 3. 小批次梯度下降 (Mini-batch Gradient Descent, MBGD — `--opt mini/mbgd/mb`)
+#### 2. 小批次梯度下降 (Mini-batch Gradient Descent, Mini — `--opt mini`)
 - **定義**：
   每個訓練週期洗牌後，將資料切分為大小為 $B$（預設 $B = 32$）的小批次 $\mathcal{B}_k$，對每個小批次計算平均梯度並更新權重：
   $$g_t = \frac{1}{B} \sum_{i \in \mathcal{B}_k} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x^{(i)} = \frac{1}{B} X_{\mathcal{B}_k}^T (h_\theta(X_{\mathcal{B}_k}) - y_{\mathcal{B}_k})$$
@@ -272,7 +263,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 - **優點與特性**：
   - **完美折衷 BGD 與 SGD**：既能利用 NumPy 矩陣向量化（Vectorization）硬體加速，又比 BGD 更新頻繁（每個訓練週期更新 $\lceil m/B \rceil = 40$ 次），且大幅降低了 SGD 的單筆震盪雜訊。
 
-#### 4. 動量梯度下降法 (Gradient Descent with Momentum — `--opt momentum`)
+#### 3. 動量梯度下降法 (Gradient Descent with Momentum — `--opt momentum`)
 - **定義**：
   引入物理學中的**「動量／速度向量（Velocity $v_t$）」**，對過去的梯度進行指數移動平均（Exponentially Weighted Moving Average，動量衰減係數 $\beta = 0.9$）：
   $$v_t = \beta v_{t-1} + (1 - \beta) g_t$$
@@ -283,7 +274,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
   - **改善收斂效率**：在梯度方向持續變化或不同方向的曲率差異較大的情況下，Momentum 通常能減少更新方向的震盪，並加快沿著穩定方向的前進速度。
   > Momentum 並**不**保證每次更新都更快，也不保證一定收斂。實際效果取決於學習率、動量係數、損失函數的形狀，以及梯度的變化情況。
 
-#### 5. 自適應矩估計優化器 (Adam: Adaptive Moment Estimation — `--opt adam`)
+#### 4. 自適應矩估計優化器 (Adam: Adaptive Moment Estimation — `--opt adam`)
 - **定義**：
   同時維護梯度的**一階動差估計 $m_t$（平均值／方向慣性）**與**二階原始動差估計 $v_t$（未中心化變異數／梯度平方幅度）**，並加上初期偏差校正（Bias Correction），預設超參數為 $\beta_1 = 0.9,\ \beta_2 = 0.999,\ \epsilon = 10^{-8}$：
   1. **更新一階與二階動差（指數移動平均）**：
@@ -301,15 +292,14 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 
 #### 執行指令範例：
 ```bash
-# 預設 Mandatory 梯度下降
-python3 src/logreg_train.py data/dataset_train.csv
+# 預設 Mandatory 批次梯度下降 (--opt bgd 為預設值)
+./src/logreg_train.py data/dataset_train.csv
 
 # 使用 Bonus 優化器
-python3 src/logreg_train.py data/dataset_train.csv --opt bgd
-python3 src/logreg_train.py data/dataset_train.csv --opt sgd
-python3 src/logreg_train.py data/dataset_train.csv --opt mbgd
-python3 src/logreg_train.py data/dataset_train.csv --opt momentum
-python3 src/logreg_train.py data/dataset_train.csv --opt adam
+./src/logreg_train.py data/dataset_train.csv --opt sgd
+./src/logreg_train.py data/dataset_train.csv --opt mini
+./src/logreg_train.py data/dataset_train.csv --opt momentum
+./src/logreg_train.py data/dataset_train.csv --opt adam
 ```
 
 ---
@@ -340,13 +330,13 @@ python3 src/logreg_train.py data/dataset_train.csv --opt adam
 >    - 因為 $L_2$ 使用同一個係數 $\lambda$ 平等懲罰所有權重平方和 $\sum w_j^2$。若未標準化，分數高達數萬分的科目（如 `Arithmancy`）其權重 $w_j$ 天生極小，而分數僅在 $-10 \sim 10$ 的科目（如 `Herbology`）其權重 $w_j$ 天生較大，$L_2$ 就會不公平地重罰數值尺度小的科目。先做 Z-score 標準化讓所有特徵同尺度，$\lambda$ 的懲罰才具備公平性。
 
 #### 3. 支援範圍與 CLI 指令範例
-五種優化器（`batch_gd`, `stochastic_gd`, `minibatch_gd`, `momentum_gd`, `adam_gd`）與統一接口 `optimize()` 皆支援 `l2_lambda` 參數（預設 `0.0`）：
+五種優化器（`batch_gd`, `stochastic_gd`, `mbgd_gd`, `momentum_gd`, `adam_gd`）與統一接口 `optimize()` 皆支援 `l2_lambda` 參數（預設 `0.0`）：
 ```bash
 # 使用預設 BGD 搭配 L2 正則化 (lambda = 0.01)
-python3 src/logreg_train.py data/dataset_train.csv --lambda 0.01
+./src/logreg_train.py data/dataset_train.csv --lambda 0.01
 
 # 結合進階優化器 (如 Adam 或 Mini-batch) 與 L2 正則化
-python3 src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01
+./src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01
 ```
 
 ---
@@ -354,7 +344,7 @@ python3 src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01
 ### Bonus 4: 學習曲線視覺化與 Early Stopping
 
 - **實作設計**：
-  1. **記錄訓練與驗證損失**：在每個訓練週期（epoch）結束時記錄 Binary Cross-Entropy 損失與當前準確率。
+  1. **記錄訓練與驗證損失**：在每個訓練週期（epoch）結束時記錄對數損失與當前準確率。
   2. **學習曲線繪圖 (`--plot` 開關)**：繪製 $\text{Loss vs. Epochs}$ 曲線，直觀比較 BGD、Mini-batch GD、SGD、Momentum 與 Adam 的收斂動態。
   3. **早停機制 (Early Stopping)**：當損失在連續 $P$ 個訓練週期改善幅度小於閾值 $\text{tol}$ 時自動提早終止訓練，節省算力並避免過度擬合。
 
@@ -389,13 +379,13 @@ python3 src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01
 - [2. Mathematical Foundations](#2-mathematical-foundations)
   - [2.0 Logistic Regression](#20-logistic-regression)
   - [2.1 Sigmoid Function](#21-sigmoid-function)
-  - [2.2 Cost Function (Binary Cross-Entropy)](#22-cost-function-binary-cross-entropy)
-  - [2.3 Gradient Derivation & Weight Update (Gradient Descent)](#23-gradient-derivation--weight-update-gradient-descent)
+  - [2.2 Cost Function](#22-cost-function)
+  - [2.3 Gradient Descent: Batch Gradient Descent (BGD — `--opt bgd [default]`)](#23-gradient-descent-batch-gradient-descent-bgd----opt-bgd-default)
   - [2.4 Feature Standardization (Z-score)](#24-feature-standardization-z-score)
 - [3. Bonus Part](#3-bonus-part)
-  - [Bonus 1: Extended Metrics in `src/utils/stats.py` & Mathematical Definitions](#bonus-1-extended-metrics-in-srcutilsstatspy--mathematical-definitions--implemented)
-  - [Bonus 2: Five Optimization Algorithms in `src/utils/optimizers.py` — Math & Advantages](#bonus-2-five-optimization-algorithms-in-srcutilsoptimizerspy--math--advantages--implemented)
-  - [Bonus 3: $L_2$ Regularization (Ridge)](#bonus-3--regularization-ridge)
+  - [Bonus 1: Extended Metrics in `src/utils/stats.py`](#bonus-1-extended-metrics-in-srcutilsstatspy)
+  - [Bonus 2: Other Optimization Algorithms in `src/utils/optimizers.py` — Math & Advantages](#bonus-2-other-optimization-algorithms-in-srcutilsoptimizerspy--math--advantages)
+  - [Bonus 3: $L_2$ Regularization (Ridge)](#bonus-3-l_2-regularization-ridge)
   - [Bonus 4: Learning Curve Visualization & Early Stopping](#bonus-4-learning-curve-visualization--early-stopping)
   - [Bonus 5: Self-Evaluation & Defense Script (`src/evaluate.py`)](#bonus-5-self-evaluation--defense-script-srcevaluatepy)
 
@@ -491,35 +481,35 @@ $$h_\theta(x) = g(\theta^T x) = \frac{1}{1 + e^{-\theta^T x}}$$
 Its first derivative satisfies the elegant identity:
 $$g'(z) = g(z)(1 - g(z))$$
 
-### 2.2 Cost Function (Binary Cross-Entropy)
-Given $m$ training samples, the cost function for binary logistic regression is the Binary Cross-Entropy (Log Loss):
+### 2.2 Cost Function
+Given $m$ training samples, the cost function for binary logistic regression is the Log Loss function:
 $$J(\theta) = -\frac{1}{m} \sum_{i=1}^{m} \Big[ y^{(i)} \log(h_\theta(x^{(i)})) + (1 - y^{(i)}) \log(1 - h_\theta(x^{(i)})) \Big]$$
 
 - When the true label is $y=1$ and $h_\theta(x) \to 0$, the loss approaches $\infty$.
 - When the true label is $y=0$ and $h_\theta(x) \to 1$, the loss approaches $\infty$.
 - This cost function is strictly **convex** in parameter space, guaranteeing no local minima so gradient descent converges to the global optimum.
 
-> #### 💡 Deep Dive: Why Binary Cross-Entropy Instead of Mean Squared Error (MSE)?
-> Linear regression uses Mean Squared Error (MSE), but logistic regression requires Binary Cross-Entropy for three fundamental mathematical reasons:
+> #### 💡 Deep Dive: Why Log Loss function Instead of Mean Squared Error (MSE)?
+> Linear regression uses Mean Squared Error (MSE), but logistic regression requires log loss for three fundamental mathematical reasons:
 > 1. **Guaranteed Convexity**:
 >    - Plugging the non-linear Sigmoid hypothesis $h_\theta(x) = \frac{1}{1 + e^{-\theta^T x}}$ into MSE produces a **non-convex** loss surface riddled with local minima and flat plateaus where gradient descent gets trapped.
->    - In contrast, Binary Cross-Entropy paired with Sigmoid yields a positive semi-definite Hessian matrix, proving it is strictly **convex** (bowl-shaped) so any local minimum is the global minimum.
+>    - In contrast, log loss paired with Sigmoid yields a positive semi-definite Hessian matrix, proving it is strictly **convex** (bowl-shaped) so any local minimum is the global minimum.
 > 2. **Maximum Likelihood Estimation (MLE) Derivation**:
 >    - Logistic regression models conditional Bernoulli probabilities: $P(y \mid x) = (h_\theta(x))^y (1 - h_\theta(x))^{1-y}$.
->    - Assuming independent and identically distributed (i.i.d.) samples, taking the Negative Log-Likelihood (NLL) of the joint likelihood $L(\theta) = \prod_{i=1}^m P(y^{(i)} \mid x^{(i)})$ divided by $m$ directly yields the Binary Cross-Entropy formula. **Minimizing cross-entropy is mathematically equivalent to maximizing the likelihood of the observed data.**
+>    - Assuming independent and identically distributed (i.i.d.) samples, taking the Negative Log-Likelihood (NLL) of the joint likelihood $L(\theta) = \prod_{i=1}^m P(y^{(i)} \mid x^{(i)})$ divided by $m$ directly yields the log loss formula. **Minimizing log loss is mathematically equivalent to maximizing the likelihood of the observed data.**
 > 3. **Preventing Gradient Vanishing**:
 >    - Under MSE, when a prediction is confidently wrong (e.g., $z = \theta^T x \gg 0$ while $y=0$), the Sigmoid derivative $\sigma'(z) \approx 0$ causes **gradient vanishing**, stalling weight updates.
->    - With Cross-Entropy, the logarithm cancels the exponential derivative of Sigmoid, yielding a clean linear gradient proportional to the prediction error $(h_\theta(x) - y)$: the larger the error, the stronger the corrective gradient!
+>    - With Log Loss, the logarithm cancels the exponential derivative of Sigmoid, yielding a clean linear gradient proportional to the prediction error $(h_\theta(x) - y)$: the larger the error, the stronger the corrective gradient!
 
-### 2.3 Gradient Derivation & Weight Update (Gradient Descent)
-Partial derivative of the cost function with respect to $\theta_j$:
-$$\frac{\partial J(\theta)}{\partial \theta_j} = \frac{1}{m} \sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x_j^{(i)}$$
-
-Vectorized matrix form:
-$$\nabla_\theta J(\theta) = \frac{1}{m} X^T \left( g(X\theta) - y \right)$$
-
-Simultaneous weight update rule with learning rate $\alpha$:
-$$\theta := \theta - \alpha \nabla_\theta J(\theta) = \theta - \frac{\alpha}{m} X^T \left( g(X\theta) - y \right)$$
+### 2.3 Gradient Descent: Batch Gradient Descent (BGD — `--opt bgd [default]`)
+- **Definition**:
+  Computes the exact average gradient $g_t$ across **all $m$ training samples** at each training epoch:
+  $$g_t = \nabla_\theta J(\theta) = \frac{1}{m} \sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x^{(i)} = \frac{1}{m} X^T (h_\theta(X) - y)$$
+  Simultaneous weight update rule (with learning rate $\alpha$):
+  $$\theta := \theta - \alpha \nabla_\theta J(\theta) = \theta - \frac{\alpha}{m} X^T \left( g(X\theta) - y \right)$$
+- **Advantages & Characteristics**:
+  - Noise-free gradient estimation; every step moves deterministically toward the global minimum, yielding the smoothest and most stable convergence trajectory.
+  - Requires scanning the entire dataset for each weight update, which carries a higher per-step computational cost on very large datasets.
 
 ### 2.4 Feature Standardization (Z-score)
 Because Hogwarts courses have vastly different score scales (e.g., `Arithmancy` in the tens of thousands vs. `Herbology` between $-10$ and $10$), unscaled features create elongated elliptical loss contours that cause gradient descent to oscillate or diverge.
@@ -534,14 +524,14 @@ where $\mu$ is the feature mean and $\sigma$ is the sample standard deviation.
 
 Once the Mandatory Part is 100% compliant and achieving $\ge 98\%$ accuracy, the project supports 5 Bonus modules:
 1. **Extended Statistical Metrics in `describe.py` & `stats.py`**: Adds sample Variance ($s^2$), Interquartile Range ($IQR$), Range ($Max - Min$), Skewness ($g_1$), Excess Kurtosis ($g_2$), Missing value percentage ($Missing\%$), and Unique count ($Unique$).
-2. **Five Optimization Algorithms (`optimizers.py`)**: Supports BGD, SGD, Mini-Batch GD, Momentum, and Adam.
+2. **Other Optimization Algorithms (`optimizers.py`)**: Supports BGD, SGD, Mini-Batch GD, Momentum, and Adam.
 3. **$L_2$ Regularization (Ridge)**: Penalizes large weights to prevent overfitting.
 4. **Learning Curve Visualization & Early Stopping**.
 5. **Self-Evaluation & Defense Script (`src/evaluate.py`)**.
 
 ---
 
-### Bonus 1: Extended Metrics in `src/utils/stats.py` & Mathematical Definitions
+### Bonus 1: Extended Metrics in `src/utils/stats.py`
 
 We have implemented 9 bonus statistical and correlation functions in `src/utils/stats.py` and `src/describe.py` by combining **from-scratch base functions with C-backed array vectorization**, strictly avoiding forbidden built-ins while achieving high performance. Below are the exact mathematical definitions and theoretical justifications for peer defense:
 
@@ -559,7 +549,7 @@ We have implemented 9 bonus statistical and correlation functions in `src/utils/
   Restores the dispersion measure to the original unit of measurement of the feature and serves as the scaling denominator for Z-score standardization $z = \frac{x - \bar{x}}{s}$. Implemented in `stats.py` as a 1-line vectorized Series operation: `return dfvar(dataframe) ** 0.5`.
 
 #### 3. Range (`dfrange`)
-- **Definition
+- **Definition**:
   $$\text{Range} = x_{\max} - x_{\min} = \max_{1 \le i \le n} x_i - \min_{1 \le i \le n} x_i$$
 - **Statistical Meaning**:
   Measures the total spread between extrema. Highly sensitive to outliers, it immediately highlights the drastic scale differences across Hogwarts courses (e.g., `Arithmancy` spans $> 1.29 \times 10^5$ whereas `Herbology` spans $\approx 21.9$), demonstrating why feature standardization is mandatory before running gradient descent.
@@ -572,7 +562,7 @@ We have implemented 9 bonus statistical and correlation functions in `src/utils/
   Captures the spread of the middle $50\%$ of sorted data. Unlike Range or Standard Deviation, the IQR is completely immune to extreme outliers in the top and bottom $25\%$ tails, making it the cornerstone dispersion metric in **Robust Statistics** (and the basis for Tukey's outlier fence $[Q_{25\%} - 1.5\,\text{IQR},\ Q_{75\%} + 1.5\,\text{IQR}]$).
 
 #### 5. Fisher-Pearson Coefficient of Skewness (`dfskew`)
-- **Definition
+- **Definition**:
   Let the $k$-th sample central moment be $m_k = \frac{1}{n} \sum_{i=1}^{n} (x_i - \bar{x})^k$. The sample skewness $g_1$ is the standardized third central moment:
   $$g_1 = \frac{m_3}{m_2^{3/2}} = \frac{\frac{1}{n}\sum_{i=1}^{n} (x_i - \bar{x})^3}{\left[\frac{1}{n}\sum_{i=1}^{n} (x_i - \bar{x})^2\right]^{3/2}}$$
 - **Statistical Meaning**:
@@ -617,20 +607,11 @@ We have implemented 9 bonus statistical and correlation functions in `src/utils/
 
 ---
 
-### Bonus 2: Five Optimization Algorithms in `src/utils/optimizers.py` — Math & Advantages
+### Bonus 2: Other Optimization Algorithms in `src/utils/optimizers.py` — Math & Advantages
 
-We have implemented 5 gradient descent optimization algorithms in `src/utils/optimizers.py` and wired them to `src/logreg_train.py` via the unified dispatcher `optimize()` and the `--opt [bgd|sgd|mbgd|momentum|adam]` CLI flag. Below are their mathematical definitions and key advantages for peer defense:
+In addition to the default Batch Gradient Descent (`--opt bgd`) covered in Section 2.3, we have implemented 4 advanced gradient descent optimization algorithms in `src/utils/optimizers.py` and wired them to `src/logreg_train.py` via the unified dispatcher `optimize()` and the `--opt [bgd|sgd|mini|momentum|adam]` CLI flag. Below are their mathematical definitions and key advantages:
 
-#### 1. Batch Gradient Descent (BGD — `--opt bgd`)
-- **Definition**:
-  Computes the exact average gradient $g_t$ across **all $m$ training samples** at each epoch:
-  $$g_t = \nabla_\theta J(\theta) = \frac{1}{m} \sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x^{(i)} = \frac{1}{m} X^T (h_\theta(X) - y)$$
-  $$\theta_{t+1} = \theta_t - \alpha g_t$$
-- **Advantages & Characteristics**:
-  - Noise-free gradient direction; takes deterministic steps directly toward the global minimum on convex loss surfaces.
-  - Requires scanning the entire dataset for a single weight update, making per-step computation expensive on massive datasets.
-
-#### 2. Stochastic Gradient Descent (SGD — `--opt sgd`)
+#### 1. Stochastic Gradient Descent (SGD — `--opt sgd`)
 - **Definition**:
   Randomly shuffles sample indices at each epoch and **updates weights immediately after evaluating each individual sample $(x^{(i)}, y^{(i)})$**:
   $$g_t = \left( h_\theta(x^{(i)}) - y^{(i)} \right) x^{(i)}$$
@@ -639,24 +620,26 @@ We have implemented 5 gradient descent optimization algorithms in `src/utils/opt
   - **High Update Frequency**: Performs $m$ weight updates per epoch ($1280\times$ more updates per epoch than BGD), yielding rapid initial loss reduction.
   - High variance in single-sample gradients introduces stochastic oscillations around the minimum, which can help escape local minima/saddle points in non-convex landscapes.
 
-#### 3. Mini-batch Gradient Descent (MBGD — `--opt mini/mbgd/mb`)
+#### 2. Mini-batch Gradient Descent (Mini — `--opt mini`)
 - **Definition**:
   Shuffles the dataset and partitions it into small batches $\mathcal{B}_k$ of size $B$ (default $B = 32$), updating weights using each mini-batch's average gradient:
   $$g_t = \frac{1}{B} \sum_{i \in \mathcal{B}_k} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x^{(i)} = \frac{1}{B} X_{\mathcal{B}_k}^T (h_\theta(X_{\mathcal{B}_k}) - y_{\mathcal{B}_k})$$
   $$\theta_{t+1} = \theta_t - \alpha g_t$$
 - **Advantages & Characteristics**:
-  - **Best of Both Worlds**: Combines the hardware-accelerated matrix vectorization of BGD with the frequent updates ($\lceil m/B \rceil$ updates per epoch) of SGD, while significantly reducing gradient variance.
+  - **Best of Both Worlds**: Combines the hardware-accelerated matrix vectorization of BGD with the frequent updates ($\lceil m/B \rceil = 40$ updates per epoch) of SGD, while significantly reducing gradient variance.
 
-#### 4. Gradient Descent with Momentum (`--opt momentum`)
+#### 3. Gradient Descent with Momentum (`--opt momentum`)
 - **Definition**:
-  Introduces a physical **velocity vector $v_t$** that accumulates an exponentially weighted moving average of past gradients (momentum decay factor $\beta = 0.9$):
+  Introduces a physical **velocity vector $v_t$** that computes an exponentially weighted moving average of past gradients (momentum decay factor $\beta = 0.9$):
   $$v_t = \beta v_{t-1} + (1 - \beta) g_t$$
   $$\theta_{t+1} = \theta_t - \alpha v_t$$
-- **Advantages & Physical Intuition**:
-  - **Heavy Ball Rolling Downhill**: Standard gradient descent has no memory of previous steps—it stalls on flat plateaus and zig-zags wildly across steep, narrow ravines where surface curvature differs across dimensions.
-  - **Dampens Oscillations & Accelerates Convergence**: By averaging historical gradients into $v_t$, opposing oscillations perpendicular to the valley cancel out, while consistent components pointing toward the minimum accumulate momentum and accelerate convergence.
+- **Core Mechanism & Advantages**:
+  - **Smooths Gradient Fluctuations**: When gradients repeatedly flip direction along a certain dimension, historical gradients and the current gradient partially cancel out, reducing violent oscillations in parameter updates.
+  - **Accumulates Consistent Gradient Directions**: When gradients across consecutive steps point in a similar direction, the moving average preserves this directional signal so updates do not rely solely on a single step's gradient.
+  - **Improves Convergence Efficiency**: When gradient directions fluctuate or curvature varies significantly across dimensions, Momentum dampens oscillatory updates and accelerates progress along stable directions.
+  > Momentum does **not** guarantee faster updates at every step, nor does it unconditionally guarantee convergence. Its actual effectiveness depends on the learning rate, momentum coefficient, loss surface geometry, and gradient dynamics.
 
-#### 5. Adam: Adaptive Moment Estimation (`--opt adam`)
+#### 4. Adam: Adaptive Moment Estimation (`--opt adam`)
 - **Definition**:
   Maintains exponentially decaying averages of both the **first moment $m_t$ (mean / directional momentum)** and the **second raw moment $v_t$ (uncentered variance / squared gradient magnitude)**, coupled with bias correction ($\beta_1 = 0.9,\ \beta_2 = 0.999,\ \epsilon = 10^{-8}$):
   1. **Update biased first and second moment estimates**:
@@ -674,15 +657,14 @@ We have implemented 5 gradient descent optimization algorithms in `src/utils/opt
 
 #### CLI Usage Examples:
 ```bash
-# Default Mandatory Gradient Descent
-python3 src/logreg_train.py data/dataset_train.csv
+# Default Mandatory Batch Gradient Descent (--opt bgd is the default)
+./src/logreg_train.py data/dataset_train.csv
 
 # Bonus Optimizers
-python3 src/logreg_train.py data/dataset_train.csv --opt bgd
-python3 src/logreg_train.py data/dataset_train.csv --opt sgd
-python3 src/logreg_train.py data/dataset_train.csv --opt mbgd
-python3 src/logreg_train.py data/dataset_train.csv --opt momentum
-python3 src/logreg_train.py data/dataset_train.csv --opt adam
+./src/logreg_train.py data/dataset_train.csv --opt sgd
+./src/logreg_train.py data/dataset_train.csv --opt mini
+./src/logreg_train.py data/dataset_train.csv --opt momentum
+./src/logreg_train.py data/dataset_train.csv --opt adam
 ```
 
 ---
@@ -691,7 +673,7 @@ python3 src/logreg_train.py data/dataset_train.csv --opt adam
 
 #### 1. Why Do We Need $L_2$ Regularization?
 To penalize large feature weights to prevent overfitting. The predicted probability is $h_{w,b}(x) = \sigma(w^T x + b) = \frac{1}{1 + e^{-(w^T x + b)}}$. Without regularization, three issues arise:
-- **Weight Explosion**: To drive Binary Cross-Entropy loss toward $0$ on the training set, the model tries to make $100\%$ confident predictions ($h_{w,b}(x) \to 1$ or $0$). Because Sigmoid only reaches $1$ or $0$ as its input approaches $\pm\infty$, gradient descent pushes weights $w_j$ to grow indefinitely.
+- **Weight Explosion**: To drive log loss toward $0$ on the training set, the model tries to make $100\%$ confident predictions ($h_{w,b}(x) \to 1$ or $0$). Because Sigmoid only reaches $1$ or $0$ as its input approaches $\pm\infty$, gradient descent pushes weights $w_j$ to grow indefinitely.
 - **Overfitting & Sensitivity to Noise**: When certain course weights $w_j$ become excessively large, tiny fluctuations or outliers in a test student's grades cause massive swings in $w^T x + b$, degrading test accuracy.
 - **Multicollinearity Instability**: When two features are strongly correlated (e.g., `Astronomy` and `Defense Against the Dark Arts`), unregularized models can assign extreme opposing weights; $L_2$ prefers smaller, evenly distributed weights ($250^2 + 250^2 \ll 1000^2 + 0^2$), stabilizing training.
 
@@ -713,13 +695,13 @@ To penalize large feature weights to prevent overfitting. The predicted probabil
 >    - $L_2$ applies a single uniform penalty $\lambda$ across $\sum w_j^2$. Without standardization, large-scale features (`Arithmancy` in the tens of thousands) naturally have tiny weights $w_j$, whereas small-scale features (`Herbology` in $[-10, 10]$) require larger weights $w_j$—causing $L_2$ to unfairly penalize small-scale features. Z-score standardization puts all features on the same scale so $\lambda$ penalizes them fairly.
 
 #### 3. CLI Usage Examples
-All 5 optimizers (`batch_gd`, `stochastic_gd`, `minibatch_gd`, `momentum_gd`, `adam_gd`) and `optimize()` accept `l2_lambda` (default `0.0`):
+All 5 optimizers (`batch_gd`, `stochastic_gd`, `mbgd_gd`, `momentum_gd`, `adam_gd`) and `optimize()` accept `l2_lambda` (default `0.0`):
 ```bash
 # Default BGD with L2 regularization (lambda = 0.01)
-python3 src/logreg_train.py data/dataset_train.csv --lambda 0.01
+./src/logreg_train.py data/dataset_train.csv --lambda 0.01
 
 # Combine an advanced optimizer (e.g., Adam) with L2 regularization
-python3 src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01
+./src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01
 ```
 
 ---
@@ -727,7 +709,7 @@ python3 src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01
 ### Bonus 4: Learning Curve Visualization & Early Stopping
 
 - **Design**:
-  - Tracks training/validation Binary Cross-Entropy loss across epochs.
+  - Tracks training/validation log loss across epochs.
   - Supports `--plot` to visualize **Cost vs. Epochs** comparing BGD, Mini-batch GD, SGD, Momentum, and Adam convergence dynamics.
   - Supports `--early-stopping` to terminate training automatically once loss improvement plateaus for $P$ consecutive epochs.
 

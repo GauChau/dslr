@@ -22,7 +22,7 @@
 | :--- | :---: | :--- | :---: |
 | `src/utils/stats.py` | ✅ **已完成 (含 Bonus)** | 已修復 `dfpercentile` 越界 Bug、改寫 $O(N)$ `dfmin`/`dfmax`，並以合規向量化完成 `dfvar`, `dfstd`, `dfrange`, `dfiqr`, `dfskew`, `dfkurt`, `dfmissing_pct`, `dfunique`, `pearson_corr`。 | **Done** |
 | `src/describe.py` | ✅ **已完成 (含 Bonus)** | 已修復 `main()` 註解無輸出問題、整合全部 15 項基礎與 Bonus 統計指標至 `statistiques`，並啟用無截斷 6 位小數格式化輸出（註：行標籤目前維持小寫以相容 `logreg_train.py`）。 | **Done** |
-| `src/utils/optimizers.py` | ✅ **已完成 (Bonus)** | 已實作共用 `sigmoid()` 及其他優化器：`batch_gd`, `stochastic_gd`, `mbgd_gd`, `momentum_gd`, `adam_gd` 與統一接口 `optimize()`，並於 `logreg_train.py` 支援 `--opt` 切換。 | **Done** |
+| `src/utils/optimizers.py` | ✅ **已完成 (Bonus)** | 已實作共用 `sigmoid()` 及其他優化器：`batch_gd`, `stochastic_gd`, `mini_gd`, `momentum_gd`, `adam_gd` 與統一接口 `optimize()`，並於 `logreg_train.py` 支援 `--opt` 切換。 | **Done** |
 | 專案結構與依賴 | ✅ **已完成** | 已重構 `data/`, `docs/`, `src/`, `src/utils/`，修正所有相對 `import`，並建立 `requirements.txt` 與 `.gitignore`。 | **Done** |
 | `src/histogram.py` | ⚠️ 待修整 | 殘留大量註解死碼；未以半透明疊加繪圖（可讀性差）；未於終端或圖表標題明確回答問題。 | **Medium** |
 | `src/scatter_plot.py` | ⚠️ 違規風險 | 仍調用 Pandas 高階 `.corr()` 與 `.idxmax()`（應改用 `stats.pearson_corr`）；未依學院上色；未印出結論。 | **High** |
@@ -96,7 +96,7 @@
    - `logreg_predict.py` 檢查參數時若 `len(sys.argv) < 3`，報錯訊息卻印出 `Usage : python script.py fichier.csv`（少提示了一個權重檔參數），且含有 5 個未使用的冗餘 `import`。
 
 #### 待辦清單 (TODO)：
-- [x] 將 `sigmoid()` 統一抽離至 `src/utils/optimizers.py` 共用，並在 `src/logreg_train.py` 串接 `--opt [bgd|sgd|mbgd|momentum|adam]`。
+- [x] 將 `sigmoid()` 統一抽離至 `src/utils/optimizers.py` 共用，並在 `src/logreg_train.py` 串接 `--opt [bgd|sgd|mini|momentum|adam]`。
 - [ ] 統一權重輸出檔名（移除不含 `mean`/`std` 的 `model_weights.csv`，避免誤傳給 `logreg_predict.py` 導致 `KeyError: 'mean'`）。
 - [ ] 導入特徵篩選（剔除 `Care of Magical Creatures`, `Arithmancy` 以及 `Defense Against the Dark Arts`）。
 - [ ] 將資料預處理改為「以 `stats.dfpercentile(df, 50)` 中位數補齊缺失值」+「Z-score 標準化」。
@@ -124,8 +124,8 @@ dslr/
 │   ├── logreg_train.py         # [已支援 --opt，待修準確率與違規函式] 模型訓練 (CLI)
 │   ├── logreg_predict.py       # [待清理] 模型預測並輸出 houses.csv
 │   └── utils/
-│       ├── __init__.py         # [已完成] 匯出所有手刻統計與優化器函式
-│       ├── stats.py            # [已完成] 手刻純統計與向量化 Bonus 函式庫
+│       ├── __init__.py         # [已完成] 匯出所有製作統計與優化器函式
+│       ├── stats.py            # [已完成] 製作純統計與向量化 Bonus 函式庫
 │       └── optimizers.py       # [已完成] 5 種梯度下降演算法與統一接口 optimize()
 ├── modele.csv                  # 訓練輸出之標準化權重檔
 ├── houses.csv                  # 最終預測結果
@@ -144,7 +144,7 @@ dslr/
 
 ## 4. Bonus 加分項目待辦清單 (Bonus Part Checklist)
 - [x] **Bonus 1 — 擴充統計指標 (`src/utils/stats.py` & `src/describe.py`)**：已完成向量化實作 `dfvar`, `dfstd`, `dfrange`, `dfiqr`, `dfskew`, `dfkurt`, `dfmissing_pct`, `dfunique`, `pearson_corr` 並整合至 15 項指標輸出表。
-- [x] **Bonus 2 — 五大梯度下降優化器 (`src/utils/optimizers.py` & `src/logreg_train.py`)**：已完成 `batch_gd`, `stochastic_gd`, `mbgd_gd`, `momentum_gd`, `adam_gd` 並串接 `--opt [bgd|sgd|mbgd|momentum|adam]`。
+- [x] **Bonus 2 — 五大梯度下降優化器 (`src/utils/optimizers.py` & `src/logreg_train.py`)**：已完成 `batch_gd`, `stochastic_gd`, `mini_gd`, `momentum_gd`, `adam_gd` 並串接 `--opt [bgd|sgd|mini|momentum|adam]`。
 - [x] **Bonus 3 — $L_2$ 正則化機制 (Ridge Regularization)**：已在 `src/utils/optimizers.py` 全數 5 種優化器、統一接口 `optimize()` 與 `l2_penalty()` 中支援 `l2_lambda`（預設 `0.0`，Bias 項 $\theta_0$ 不參與正則化），並於 `src/logreg_train.py` 串接 `--lambda` 參數。
 - [ ] **Bonus 4 — 學習曲線視覺化與 Early Stopping**：實作 `--plot`（繪製五大優化器 Loss vs. Epochs 收斂比較圖）與 `--early-stopping` 參數。
 - [ ] **Bonus 5 — 自我驗證與口試答辯評估工具 (`src/evaluate.py`)**：支援 5-Fold 交叉驗證、混淆矩陣與 `sklearn.metrics.accuracy_score` 驗證（確保穩定 $\ge 98.0\%$）。
@@ -156,7 +156,7 @@ dslr/
 ```mermaid
 flowchart TD
     A["Phase 1: 統計核心與 describe.py ✅ 已完成<br>(stats.py 向量化、describe.py 15項指標完整輸出)"] --> B["Phase 2: 五大梯度下降優化器與 L2 正則化 ✅ 已完成<br>(BGD, SGD, Mini-batch, Momentum, Adam 與 --opt / --lambda 串接)"]
-    B --> C["Phase 3: 修復三大視覺化腳本<br>(histogram 半透明疊圖、scatter_plot 手刻皮爾森與學院上色)"]
+    B --> C["Phase 3: 修復三大視覺化腳本<br>(histogram 半透明疊圖、scatter_plot 製作皮爾森與學院上色)"]
     C --> D["Phase 4: 解決準確率 < 98% 與權重檔衝突<br>(特徵篩選、中位數補齊、移除違規函式與 model_weights.csv)"]
     D --> E["Phase 5: 評審答辯演練 (Defense Prep)<br>(參閱 docs/walkthrough.md 推導梯度、動差與優化器公式)"]
 ```
@@ -193,7 +193,7 @@ Following our audit against `en.subject.pdf` and `README.md`, we have **complete
 | :--- | :---: | :--- | :---: |
 | `src/utils/stats.py` | ✅ **Completed (+ Bonus)** | Fixed `dfpercentile` `IndexError`, rewrote $O(N)$ `dfmin`/`dfmax`, and implemented vectorized `dfvar`, `dfstd`, `dfrange`, `dfiqr`, `dfskew`, `dfkurt`, `dfmissing_pct`, `dfunique`, and `pearson_corr`. | **Done** |
 | `src/describe.py` | ✅ **Completed (+ Bonus)** | Uncommented `main()` output, integrated all 15 Mandatory & Bonus metrics into `statistiques`, and enabled untruncated 6-decimal formatted printing (row labels kept lowercase for compatibility with `logreg_train.py`). | **Done** |
-| `src/utils/optimizers.py` | ✅ **Completed (Bonus 2 & 3)** | Implemented shared `sigmoid()`, `l2_penalty()`, and 5 optimizers (`batch_gd`, `stochastic_gd`, `mbgd_gd`, `momentum_gd`, `adam_gd`) + unified dispatcher `optimize()` with $L_2$ regularization (`l2_lambda`), wired to `logreg_train.py` via `--opt` and `--lambda`. | **Done** |
+| `src/utils/optimizers.py` | ✅ **Completed (Bonus 2 & 3)** | Implemented shared `sigmoid()`, `l2_penalty()`, and 5 optimizers (`batch_gd`, `stochastic_gd`, `mini_gd`, `momentum_gd`, `adam_gd`) + unified dispatcher `optimize()` with $L_2$ regularization (`l2_lambda`), wired to `logreg_train.py` via `--opt` and `--lambda`. | **Done** |
 | Structure & Deps | ✅ **Completed** | Restructured into `data/`, `docs/`, `src/`, `src/utils/`; fixed relative imports; added `requirements.txt` and `.gitignore`. | **Done** |
 | `src/histogram.py` | ⚠️ Needs Cleanup | Cluttered with commented-out dead code; uses side-by-side bars instead of translucent overlapping histograms; does not explicitly state the answer. | **Medium** |
 | `src/scatter_plot.py` | ⚠️ Rule Violation Risk | Still calls built-in `.corr()` and `.idxmax()` (should switch to `stats.pearson_corr`); points not colored by House; does not print the conclusion. | **High** |
@@ -266,7 +266,7 @@ Following our audit against `en.subject.pdf` and `README.md`, we have **complete
    - `logreg_predict.py` checks `if len(sys.argv) < 3:` but prints `Usage : python script.py fichier.csv` (missing the second argument in the message) and contains 5 unused imports.
 
 #### Actionable TODO:
-- [x] Unify `sigmoid()` in `src/utils/optimizers.py` and wire `--opt [bgd|sgd|mbgd|momentum|adam]` and `--lambda` in `src/logreg_train.py`.
+- [x] Unify `sigmoid()` in `src/utils/optimizers.py` and wire `--opt [bgd|sgd|mini|momentum|adam]` and `--lambda` in `src/logreg_train.py`.
 - [ ] Consolidate trained parameters into a single weight file (eliminating `model_weights.csv` so `KeyError: 'mean'` can never happen).
 - [ ] Drop `Care of Magical Creatures`, `Arithmancy`, and `Defense Against the Dark Arts` during preprocessing.
 - [ ] Impute missing values using manual **median** (`stats.dfpercentile(df, 50)`) prior to Z-score standardization.
@@ -286,7 +286,7 @@ Following our audit against `en.subject.pdf` and `README.md`, we have **complete
 
 ## 4. Bonus Part Actionable Checklist
 - [x] **Bonus 1 — Extended Statistical Metrics (`src/utils/stats.py` & `src/describe.py`)**: Implemented vectorized `dfvar`, `dfstd`, `dfrange`, `dfiqr`, `dfskew`, `dfkurt`, `dfmissing_pct`, `dfunique`, and `pearson_corr`, integrated into the 15-metric `describe.py` output table.
-- [x] **Bonus 2 — Five Gradient Descent Optimizers (`src/utils/optimizers.py` & `src/logreg_train.py`)**: Implemented `batch_gd`, `stochastic_gd`, `mbgd_gd`, `momentum_gd`, and `adam_gd`, wired to `--opt [bgd|sgd|mbgd|momentum|adam]`.
+- [x] **Bonus 2 — Five Gradient Descent Optimizers (`src/utils/optimizers.py` & `src/logreg_train.py`)**: Implemented `batch_gd`, `stochastic_gd`, `mini_gd`, `momentum_gd`, and `adam_gd`, wired to `--opt [bgd|sgd|mini|momentum|adam]`.
 - [x] **Bonus 3 — $L_2$ Regularization (Ridge)**: Added `l2_lambda` support across all 5 optimizers, `optimize()`, and `l2_penalty()` in `src/utils/optimizers.py` (excluding bias term $\theta_0$), wired to `--lambda` CLI flag (default `0.0`) in `src/logreg_train.py`.
 - [ ] **Bonus 4 — Learning Curve Visualization & Early Stopping**: Implement `--plot` (comparing BGD, Mini-batch GD, SGD, Momentum, and Adam loss curves) and `--early-stopping` flags in `src/logreg_train.py`.
 - [ ] **Bonus 5 — Self-Evaluation & Defense Script (`src/evaluate.py`)**: Create `src/evaluate.py` to run 5-Fold Cross-Validation and print the Confusion Matrix, Precision, Recall, F1-Score, and `sklearn.metrics.accuracy_score` ($\ge 98.0\%$).

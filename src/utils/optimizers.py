@@ -133,12 +133,12 @@ def stochastic_gd(
 
 
 # =====================================================================
-# 3. Mini-batch Gradient Descent (MBGD) - 小批次梯度下降 [Bonus]
+# 3. Mini-batch Gradient Descent (Mini) - 小批次梯度下降 [Bonus]
 #    結合 BGD 與 SGD 的優點：每個 Epoch 洗牌後，每次抽取一小批樣本（如 batch_size = 32）
 #    計算該批次的平均梯度並更新權重。
 #    優點：既能利用矩陣向量化加速，又比 BGD 更新更頻繁、比 SGD 更穩定。
 # =====================================================================
-def mbgd_gd(
+def mini_gd(
     hold_df: pd.DataFrame,
     weights: pd.DataFrame,
     bias: pd.Series,
@@ -331,7 +331,7 @@ def adam_gd(
 
 # =====================================================================
 # 統一接口函式 (Unified Dispatcher)
-# 讓 logreg_train.py 只需呼叫 optimize(..., opt="bgd" | "sgd" | "mbgd" | "momentum" | "adam")
+# 讓 logreg_train.py 只需呼叫 optimize(..., opt="bgd" | "sgd" | "mini" | "momentum" | "adam")
 # =====================================================================
 def optimize(
     hold_df: pd.DataFrame,
@@ -353,8 +353,8 @@ def optimize(
         return stochastic_gd(
             hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs, l2_lambda=l2_lambda
         )
-    if opt_name in ("mb", "mbgd", "mini"):
-        return mbgd_gd(
+    if opt_name == "mini":
+        return mini_gd(
             hold_df,
             weights,
             bias,
@@ -372,5 +372,5 @@ def optimize(
             hold_df, weights, bias, learning_rate=learning_rate, epochs=epochs, l2_lambda=l2_lambda
         )
     raise ValueError(
-        f"Unknown optimizer '{opt}'. Choose from: 'bgd', 'sgd', 'mbgd', 'momentum', 'adam'."
+        f"Unknown optimizer '{opt}'. Choose from: 'bgd', 'sgd', 'mini', 'momentum', 'adam'."
     )

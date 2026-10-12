@@ -44,25 +44,6 @@ def logloss(reality: pd.Series, data: pd.DataFrame, sigmoid: pd.Series) -> pd.Se
 
 	return (-(y * np.log(p) + (1 - y) * np.log(1 - p))).rename("L")
 
-def ecart(reality: pd.Series,data: pd.DataFrame,sigmoid: pd.Series) -> pd.Series:
-	"""Écart signé p - y, utilisé pour calculer les gradients."""
-	_verifier_entrees(reality, data, sigmoid)
-
-	return (sigmoid.astype(float) - reality.astype(float)).rename("e")
-
-def gradient_calculator(
-	dataset: pd.DataFrame, mats_weight: pd.Series, ecart: pd.Series, l2_lambda: float = 0.0
-) -> pd.Series:
-	grads = mats_weight.copy()
-	m_samples = len(dataset)
-
-	for mats in mats_weight.index:
-		grads.loc[mats] = (dataset[mats] * ecart).sum() / m_samples + (
-			l2_lambda / m_samples
-		) * mats_weight.loc[mats]
-	return grads
-
-
 def holdOut(dataset: pd.DataFrame, reality: pd.DataFrame)-> pd.DataFrame:
 
 
@@ -93,7 +74,7 @@ def main():
 
 	Arguments:
 	dataset : Path to the training dataset CSV file.
-	--opt   : Optional optimization algorithm (bgd, sgd, mbgd, momentum, or adam).
+	--opt   : Optimization algorithm (default: 'bgd'; choices: bgd, sgd, mini, momentum, adam).
 	--lambda: Non-negative L2 regularization strength (default: 0.0).
 
 	Returns:
@@ -104,9 +85,9 @@ def main():
 	parser.add_argument("dataset", help="Path to dataset_train.csv")
 	parser.add_argument(
 		"--opt",
-		choices=["bgd", "sgd", "mbgd", "momentum", "adam"],
-		default=None,
-		help="Bonus optimization algorithm ('bgd', 'sgd', 'mbgd', 'momentum', or 'adam')",
+		choices=["bgd", "sgd", "mini", "momentum", "adam"],
+		default="bgd",
+		help="Optimization algorithm ('bgd' [default], 'sgd', 'mini', 'momentum', or 'adam')",
 	)
 	parser.add_argument(
 		"--lambda",
@@ -146,35 +127,14 @@ def main():
 
 	# print(hold_df)
 
-	if args.opt is not None or args.l2_lambda > 0.0:
-		weights, bias = opt_utils.optimize(
-			hold_df,
-			weights,
-			bias,
-			opt=args.opt if args.opt is not None else "bgd",
-			learning_rate=learning_rate,
-			l2_lambda=args.l2_lambda,
-		)
-	else:
-		for m in maison:
-			for i in range(100):
-				calcs = pd.DataFrame()
-				calcs["z"] = model_weight_applicator(weights[m], hold_df,bias.loc[m])
-				calcs["p"] = sigmoid(calcs["z"])
-				calcs["L"] = logloss(hold_df[m], hold_df, calcs["p"])
-				calcs["e"] = ecart(hold_df[m], hold_df, calcs["p"])
-				gradients = weights.copy()
-				grads = gradient_calculator(hold_df, weights[m], calcs["e"], l2_lambda=args.l2_lambda)
-				grad_bias = calcs["e"].sum() / len(hold_df)
-
-				weights[m] -= learning_rate * grads
-				bias.loc[m] -= learning_rate * grad_bias
-
-				gradient_max = max(grads.abs().max(), abs(grad_bias))
-
-				if gradient_max < 1e-4:
-					print("Convergence atteinte")
-					break
+	weights, bias = opt_utils.optimize(
+		hold_df,
+		weights,
+		bias,
+		opt=args.opt,
+		learning_rate=learning_rate,
+		l2_lambda=args.l2_lambda,
+	)
 
 	# print(weights)
 

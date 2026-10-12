@@ -62,7 +62,7 @@ By completing this project, you will master the foundational pillars of modern m
 
 ### 2.3 Logistic Regression & Optimization
 - Understand Generalized Linear Models (GLMs) and how the **Sigmoid function** maps linear combinations into $[0, 1]$ probability estimates.
-- Understand the mathematical nature and convexity of the **Binary Cross-Entropy (Log Loss)** cost function.
+- Understand the mathematical nature and convexity of the **Log Loss** function.
 - Derive the gradient vector and implement **Batch Gradient Descent (BGD)** from scratch, tuning the learning rate ($\alpha$) and training epochs.
 
 ### 2.4 One-vs-All Multi-Class Classification
@@ -103,7 +103,7 @@ dslr/
 │   └── utils/
 │       ├── __init__.py
 │       ├── stats.py            # From-scratch statistical functions (mean, std, quartiles, etc.)
-│       └── optimizers.py       # Sigmoid & 5 Gradient Descent optimizers (BGD, SGD, MBGD, Momentum, Adam)
+│       └── optimizers.py       # Sigmoid & 5 Gradient Descent optimizers (BGD, SGD, Mini, Momentum, Adam)
 ├── modele.csv                  # Trained model weights & scaling parameters
 ├── houses.csv                  # Final generated house predictions
 ├── requirements.txt            # Python package dependencies
@@ -119,7 +119,7 @@ dslr/
 For in-depth implementation steps, EDA feature selection justifications, logistic regression mathematical proofs, and Bonus Part formulations, please refer to:
 👉 **[`docs/walkthrough.md` — Implementation Walkthrough & Mathematical Foundations](./docs/walkthrough.md#dslr-implementation-walkthrough-and-mathematical-foundations)**
 - **Section 1**: Step-by-Step Implementation Guide (`describe.py`, EDA Plots, `logreg_train.py` & `logreg_predict.py`, and why Median Imputation is used)
-- **Section 2**: Mathematical Foundations (Sigmoid derivative, Binary Cross-Entropy vs. MSE convexity/MLE proof, Gradient Descent vectorization, Z-score standardization)
+- **Section 2**: Mathematical Foundations (Sigmoid derivative, Log Loss function vs. MSE convexity/MLE proof, Gradient Descent vectorization, Z-score standardization)
 - **Section 3**: Bonus Part Implementation & Mathematical Definitions (9 extended statistical metrics & 5 gradient descent optimizers)
 
 ---
@@ -211,7 +211,7 @@ print(f"Validation Accuracy: {accuracy * 100:.2f}%")
   - [1.2 任務目標](#12-任務目標)
 - [2. 學習目標與核心概念 (What There Is to Learn)](#2-學習目標與核心概念-what-there-is-to-learn)
   - [2.1 資料探索與特徵工程 (EDA & Feature Engineering)](#21-資料探索與特徵工程-eda--feature-engineering)
-  - [2.2 手刻基礎統計指標 (Descriptive Statistics from Scratch)](#22-手刻基礎統計指標-descriptive-statistics-from-scratch)
+  - [2.2 製作基礎統計指標 (Descriptive Statistics from Scratch)](#22-製作基礎統計指標-descriptive-statistics-from-scratch)
   - [2.3 邏輯回歸與梯度下降 (Logistic Regression & Optimization)](#23-邏輯回歸與梯度下降-logistic-regression--optimization)
   - [2.4 多類別分類 (One-vs-All Classification)](#24-多類別分類-one-vs-all-classification)
 - [3. 規範與限制 (Rules & Constraints)](#3-規範與限制-rules--constraints)
@@ -231,7 +231,7 @@ print(f"Validation Accuracy: {accuracy * 100:.2f}%")
 霍格華茲魔法學校的**分類帽（Sorting Hat）**正面臨重大危機！校長鄧不利多向麻瓜資料科學家求助，希望能透過麻瓜的「電腦」重新創造出魔法分類帽的功能。麥米奈娃教授提供了一本記載學生資料與魔法課程成績的古老魔法書（經過「數位化」轉為 CSV 檔案）。
 
 ### 1.2 任務目標
-本專案目標是**完全不依賴機器學習現成高階函式庫（如 Scikit-Learn 的模型訓練、Pandas 的 `describe()` 等）**，從零手刻：
+本專案目標是**完全不依賴機器學習現成高階函式庫（如 Scikit-Learn 的模型訓練、Pandas 的 `describe()` 等）**，從零製作：
 1. **資料統計工具**：計算並格式化輸出各特徵的統計數據。
 2. **資料視覺化**：繪製直方圖、散布圖與配對圖矩陣，回答資料特徵問題並篩選有效特徵。
 3. **邏輯回歸分類器**：實作 One-vs-All 多類別分類演算法與梯度下降，將學生準確分配至四個學院（Gryffindor、Hufflepuff、Ravenclaw、Slytherin），在測試集上達到 **98% 以上的準確率（Accuracy）**。
@@ -247,7 +247,7 @@ print(f"Validation Accuracy: {accuracy * 100:.2f}%")
 - **特徵篩選 (Feature Selection)**：透過統計分佈與視覺化圖表，識別無區分度的均勻特徵（如各學院分數分佈完全重疊的課程）與冗餘特徵（高度線性相關的共線性特徵），從而剔除雜訊、提升模型泛化能力。
 - **資料預處理 (Data Preprocessing)**：掌握缺失值補齊策略（如以特徵中位數或均值填補）與特徵標準化（Z-score Normalization），了解為何標準化是梯度下降收斂的關鍵前提。
 
-### 2.2 手刻基礎統計指標 (Descriptive Statistics from Scratch)
+### 2.2 製作基礎統計指標 (Descriptive Statistics from Scratch)
 - 脫離高階工具的黑盒子，親手撰寫演算法計算各項數值統計量：
   - 樣本計數 ($Count$)
   - 算術平均數 ($Mean$)
@@ -257,8 +257,8 @@ print(f"Validation Accuracy: {accuracy * 100:.2f}%")
 
 ### 2.3 邏輯回歸與梯度下降 (Logistic Regression & Optimization)
 - 理解廣義線性模型（Generalized Linear Models），以及如何透過 **Sigmoid 函數** 將線性輸出對應至 $[0, 1]$ 區間作為機率估計。
-- 理解對數近似損失（Binary Cross-Entropy Loss）的數學本質與凸優化特性。
-- 掌握梯度向量的推導過程，手刻批次梯度下降法（Batch Gradient Descent, BGD），手動調校學習率（Learning Rate $\alpha$）與迭代次數（Epochs）。
+- Log Loss）的數學本質與凸優化特性。
+- 掌握梯度向量的推導過程，製作批次梯度下降法（Batch Gradient Descent, BGD），手動調校學習率（Learning Rate $\alpha$）與迭代次數（Epochs）。
 
 ### 2.4 多類別分類 (One-vs-All Classification)
 - 理解二元分類器如何擴展至多元分類問題。
@@ -297,8 +297,8 @@ dslr/
 │   ├── logreg_predict.py       # Mandatory: 讀取權重進行預測並輸出 houses.csv
 │   └── utils/
 │       ├── __init__.py
-│       ├── stats.py            # 手刻統計演算法 (mean, std, quartiles, etc.)
-│       └── optimizers.py       # Sigmoid 與五大梯度下降優化器 (BGD, SGD, MBGD, Momentum, Adam)
+│       ├── stats.py            # 統計指標 (mean, std, quartiles, etc.)
+│       └── optimizers.py       # Sigmoid 與五大梯度下降優化器 (BGD, SGD, Mini, Momentum, Adam)
 ├── modele.csv                  # 訓練後輸出的權重與標準化參數
 ├── houses.csv                  # 最終生成的預測輸出檔
 ├── requirements.txt            # 相依套件清單 (numpy, pandas, matplotlib, seaborn)
@@ -306,7 +306,7 @@ dslr/
 ```
 
 ### 4.2 模組職責劃分
-- **`src/utils/stats.py`**：實現數值型序列的純手刻統計指標（含向量化 Bonus 指標），提供給 `describe.py`、`scatter_plot.py` 及標準化流程使用。
+- **`src/utils/stats.py`**：實現數值型序列的純製作統計指標（含向量化 Bonus 指標），提供給 `describe.py`、`scatter_plot.py` 及標準化流程使用。
 - **`src/utils/optimizers.py`**：封裝 Sigmoid 激活函數與五大梯度下降優化演算法（BGD、SGD、Mini-batch GD、Momentum、Adam），並提供統一接口 `optimize()`。
 - **`src/logreg_train.py` 與 `src/logreg_predict.py`**：負責資料清洗、保存訓練集統計參數（中位數、均值、標準差，防止 Data Leakage）、One-vs-All 模型訓練與最終學院預測輸出。
 
