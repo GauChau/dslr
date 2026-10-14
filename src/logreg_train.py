@@ -90,7 +90,10 @@ def main():
 		parser.error("--lambda must be non-negative (>= 0.0).")
 
 	nom_fichier = args.dataset
-	dataset = pd.read_csv(nom_fichier, sep=",")
+	try:
+		dataset = pd.read_csv(nom_fichier, sep=",")
+	except (OSError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as e:
+		sys.exit(f"Erreur de lecture du CSV : {e}")
 
 	try:
 		maison = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
