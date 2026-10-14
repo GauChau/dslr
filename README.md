@@ -51,7 +51,7 @@ By completing this project, you will master the foundational pillars of modern m
 ### 2.1 Exploratory Data Analysis & Feature Engineering
 - **Exploratory Data Analysis (EDA)**: Inspect data types, value ranges, missing value (`NaN`) distributions, and outliers.
 - **Feature Selection**: Use statistical distributions and visual plots to identify uninformative homogeneous features (courses where all four houses have identical score distributions) and redundant collinear features (pairs of courses with strong linear correlation), removing noise to improve generalization.
-- **Data Preprocessing**: Master missing value imputation strategies (such as median imputation) and feature standardization (Z-score normalization), understanding why scaling is essential for gradient descent convergence.
+- **Data Preprocessing**: Master missing value imputation strategies (such as median imputation) and feature standardization, understanding why scaling is essential for gradient descent convergence.
 
 ### 2.2 Descriptive Statistics from Scratch
 - Look inside the black box of high-level libraries by writing manual algorithms for key statistical metrics:
@@ -104,7 +104,15 @@ dslr/
 │   └── utils/
 │       ├── __init__.py
 │       ├── stats.py            # From-scratch statistical functions (mean, std, quartiles, etc.)
-│       └── optimizers.py       # Sigmoid & 5 Gradient Descent optimizers (BGD, SGD, Mini, Momentum, Adam)
+│       ├── optimizers.py       # Sigmoid, L2 penalty & 5 Gradient Descent optimizers (BGD, SGD, Mini, Momentum, Adam)
+│       ├── early_stopping.py   # EarlyStopping monitoring class & TrainingHistory container (Bonus 4)
+│       └── learning_curves.py  # Visual benchmarks & ablation dashboard generator (Bonus 4)
+├── plots/                      # Visual benchmarks and analysis plots directory
+│   ├── histogram.png           # 13-course translucent overlapping histogram matrix
+│   ├── scatter_plot.png        # Astronomy vs. DADA feature similarity scatter plot
+│   ├── pair_plot.png           # Feature selection scatter plot matrix
+│   ├── learning_curves.png     # 5-optimizer Loss vs. Epochs comparative learning curves
+│   └── visualization.png       # 4-panel comprehensive benchmark & ablation dashboard
 ├── tester/
 │   └── tester.py               # Automated test suite (describe vs. Pandas, AST audit, L2 & accuracy >= 98%)
 ├── modele.csv                  # Trained model weights & scaling parameters
@@ -115,7 +123,9 @@ dslr/
 
 ### 4.2 Module Responsibilities
 - **`src/utils/stats.py`**: Implements pure from-scratch statistical functions on numerical sequences (plus vectorized Bonus metrics), shared by `describe.py`, `scatter_plot.py`, and the preprocessing pipeline.
-- **`src/utils/optimizers.py`**: Encapsulates the Sigmoid activation and 5 gradient descent optimization algorithms (Batch GD, Stochastic GD, Mini-batch GD, Momentum, and Adam) via a unified `optimize()` interface.
+- **`src/utils/optimizers.py`**: Encapsulates Sigmoid activation, $L_2$ regularization, and 5 gradient descent optimization algorithms (Batch GD, Stochastic GD, Mini-batch GD, Momentum, and Adam) via a unified `optimize()` interface.
+- **`src/utils/early_stopping.py`**: Implements the `EarlyStopping` monitoring class (patience counter, minimum improvement threshold, and best parameter rollback) and the `TrainingHistory` tracking container.
+- **`src/utils/learning_curves.py`**: Encapsulates `plot_learning_curves()` and `visualize_benchmark()` to generate both 5-optimizer learning curves (`plots/learning_curves.png`) and the 4-panel ablation dashboard (`plots/visualization.png`).
 - **`src/logreg_train.py` & `src/logreg_predict.py`**: Manage data cleaning, training set parameter storage (medians, means, standard deviations) to prevent **Data Leakage**, One-vs-All training, and final house inference.
 - **`tester/tester.py`**: Standalone automated test and oral defense suite verifying numerical equivalence against Pandas, edge-case stability, AST static rule compliance, $L_2$ regularization weight decay mathematics, and end-to-end multi-class classification accuracy ($\ge 98\%$).
 
@@ -123,7 +133,7 @@ dslr/
 For in-depth implementation steps, EDA feature selection justifications, logistic regression mathematical proofs, and Bonus Part formulations, please refer to:
 👉 **[`docs/walkthrough.md` — Walkthrough & Mathematical Foundations](./docs/walkthrough.md#dslr-implementation-walkthrough-and-mathematical-foundations)**
 - **Section 1**: Guide (`describe.py`, EDA Plots, `logreg_train.py` & `logreg_predict.py`, and why Median Imputation is used)
-- **Section 2**: Mathematical Foundations (Sigmoid derivative, Log Loss function vs. MSE convexity/MLE proof, Gradient Descent vectorization, Z-score standardization)
+- **Section 2**: Mathematical Foundations (Sigmoid derivative, Log Loss function vs. MSE convexity/MLE proof, Gradient Descent vectorization, Feature Standardization)
 - **Section 3**: Bonus Part (9 extended statistical metrics & 4 advanced gradient descent optimizers)
 
 ---
@@ -167,8 +177,13 @@ All CLI scripts in `src/` include the `#!/usr/bin/env python3` shebang and execu
 # Mandatory: Train the One-vs-All logistic regression model and output modele.csv
 ./src/logreg_train.py data/dataset_train.csv
 
-# Bonus: Train with custom optimizer and/or L2 regularization
-./src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01
+# Bonus: Train with custom optimizer, L2 regularization, and Early Stopping
+./src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01 --early-stopping --patience 5
+
+# Bonus: Generate visual benchmarks in plots/ (learning_curves.png & visualization.png)
+./src/logreg_train.py data/dataset_train.csv --visual
+# Or combine early stopping with visual benchmarks:
+./src/logreg_train.py data/dataset_train.csv -e -v
 
 # Predict houses on dataset_test.csv and generate houses.csv
 ./src/logreg_predict.py data/dataset_test.csv modele.csv
@@ -176,21 +191,25 @@ All CLI scripts in `src/` include the `#!/usr/bin/env python3` shebang and execu
 
 #### 4. Automated Test & Defense Verification Suite (`tester/tester.py`)
 ```bash
-# Run all 5 test suites (describe vs. pandas, Bonus stats, AST audit, L2 weight decay, and >= 98% accuracy)
+# Run all test suites (describe vs. pandas, Bonus stats, AST audit, L2 weight decay & early stopping, and >= 98% accuracy)
 ./tester/tester.py
 
+# Run all test suites AND generate comprehensive benchmark plots in plots/:
+./tester/tester.py --visual
+
 # Or run a specific test group only:
-./tester/tester.py --only [describe|stats|ast|l2|e2e]
+./tester/tester.py --only [describe|stats|ast|l2|e2e|visual]
 ```
 
 ### 5.3 Automated Verification & Mathematical Meaning of Tests (`tester/tester.py`)
 
-Provides 5 standalone verification modules (`./tester/tester.py --only [describe|stats|ast|l2|e2e]`):
+Provides standalone verification modules (`./tester/tester.py --only [describe|stats|ast|l2|e2e|visual]`):
 1. **`describe` vs. Official Pandas `df.describe()`**: Verifies all 8 mandatory metrics within IEEE-754 `float64` machine precision (relative error $\le 1.88 \times 10^{-15}$).
 2. **Bonus 1 Extended Metrics & Edge-Case Robustness**: Validates all 7 extended metrics + `pearson_corr` (`Astronomy` vs. `DADA`, $r = -1.000000$) and stresses edge cases (all-`NaN`, $N=1$, constant column $s=0$).
 3. **Static AST Compliance Audit**: Uses `ast.parse` to guarantee zero forbidden statistical calls in `src/describe.py` and `src/utils/stats.py`.
-4. **Sigmoid Stability & $L_2$ Weight Decay Verification**: Verifies extreme logit stability ($z = \pm 1000$), confirms bias $\theta_0$ is unpenalized, and proves $\|w\|_2$ shrinks under $L_2$ regularization.
-5. **End-to-End Multi-Class Optimizer Benchmark & Confusion Matrix**: Benchmarks all 5 optimizers (`bgd`, `sgd`, `mini`, `momentum`, `adam`) + `--lambda 0.01` ($\ge 98.0\%$ accuracy, reaching **98.94%**), prints Precision / Recall / F1-Score and the Confusion Matrix, and validates `houses.csv` on `dataset_test.csv`.
+4. **Sigmoid Stability, $L_2$ Weight Decay & Early Stopping Verification**: Verifies extreme logit stability ($z = \pm 1000$), confirms bias $\theta_0$ is unpenalized, proves $\|w\|_2$ shrinks under $L_2$ regularization, and validates early termination when loss improvements plateau.
+5. **End-to-End Multi-Class Optimizer Benchmark & Confusion Matrix**: Benchmarks all 5 optimizers (`bgd`, `sgd`, `mini`, `momentum`, `adam`) + `--lambda 0.01` ($\ge 98.0\%$ accuracy, reaching **98.19%**), generates `plots/learning_curves.png` and `plots/visualization.png`, prints Precision / Recall / F1-Score and the Confusion Matrix, and validates `houses.csv` on `dataset_test.csv`.
+6. **Visualization (`--visual`)**: Generates both `plots/learning_curves.png` and `plots/visualization.png` (Study across 5 optimizers convergence, $L_2$ norm decay vs. validation accuracy, feature weight shrinkage, and early stopping computational savings).
 
 👉 For the detailed explanation of how each test confirms **code integrity** and its **mathematical meaning**, see **[`docs/walkthrough.md` — Bonus 5](./docs/walkthrough.md#bonus-5-automated-test--defense-verification-suite-testertesterpy)**.
 
@@ -200,7 +219,7 @@ Provides 5 standalone verification modules (`./tester/tester.py --only [describe
 - **Rule Compliance**: Zero forbidden built-in statistical or ML functions used for heavy lifting (verified via AST in `TEST 3`).
 - **Visualizations & Feature Justification**: Clear plots and sound reasoning for feature selection.
 - **Classification Accuracy**: $\ge 98\%$ accuracy on `dataset_test.csv` (verified at $98.94\%$ across all 5 optimizers in `TEST 5`).
-- **Peer Defense**: Ability to explain the gradient derivation, Sigmoid properties, Z-score standardization, and One-vs-All classification.
+- **Peer Defense**: Ability to explain the gradient derivation, Sigmoid properties, Feature Standardization, and One-vs-All classification.
 
 ---
 
@@ -232,7 +251,7 @@ Provides 5 standalone verification modules (`./tester/tester.py --only [describe
   - [2.3 邏輯回歸與梯度下降 (Logistic Regression & Optimization)](#23-邏輯回歸與梯度下降-logistic-regression--optimization)
   - [2.4 多類別分類 (One-vs-All Classification)](#24-多類別分類-one-vs-all-classification)
 - [3. 規範與限制 (Rules & Constraints)](#3-規範與限制-rules--constraints)
-- [4. 實作架構設計 (How We Implement It)](#4-實作架構設計-how-we-implement-it)
+- [4. 架構設計 (How We Implement It)](#4-架構設計-how-we-implement-it)
   - [4.1 專案目錄結構](#41-專案目錄結構)
   - [4.2 模組職責劃分](#42-模組職責劃分)
   - [4.3 細節與數學推導 (`docs/walkthrough.md`)](./docs/walkthrough.md)
@@ -252,7 +271,7 @@ Provides 5 standalone verification modules (`./tester/tester.py --only [describe
 本專案目標是**完全不依賴機器學習現成高階函式庫（如 Scikit-Learn 的模型訓練、Pandas 的 `describe()` 等）**，從零製作：
 1. **資料統計工具**：計算並格式化輸出各特徵的統計數據。
 2. **資料視覺化**：繪製直方圖、散布圖與配對圖矩陣，回答資料特徵問題並篩選有效特徵。
-3. **邏輯回歸分類器**：實作 One-vs-All 多類別分類演算法與梯度下降，將學生準確分配至四個學院（Gryffindor、Hufflepuff、Ravenclaw、Slytherin），在測試集上達到 **98% 以上的準確率（Accuracy）**。
+3. **邏輯回歸分類器**：設計 One-vs-All 多類別分類演算法與梯度下降，將學生準確分配至四個學院（Gryffindor、Hufflepuff、Ravenclaw、Slytherin），在測試集上達到 **98% 以上的準確率（Accuracy）**。
 
 ---
 
@@ -263,7 +282,7 @@ Provides 5 standalone verification modules (`./tester/tester.py --only [describe
 ### 2.1 資料探索與特徵工程 (EDA & Feature Engineering)
 - **探索性資料分析 (Exploratory Data Analysis)**：學會判讀資料型態、數值範圍、缺失值（NaN）分布與異常值。
 - **特徵篩選 (Feature Selection)**：透過統計分佈與視覺化圖表，識別無區分度的均勻特徵（如各學院分數分佈完全重疊的課程）與冗餘特徵（高度線性相關的共線性特徵），從而剔除雜訊、提升模型泛化能力。
-- **資料預處理 (Data Preprocessing)**：掌握缺失值補齊策略（如以特徵中位數或均值填補）與特徵標準化（Z-score Normalization），了解為何標準化是梯度下降收斂的關鍵前提。
+- **資料預處理 (Data Preprocessing)**：掌握缺失值補齊策略（如以特徵中位數或均值填補）與特徵標準化（Standardization），了解為何標準化是梯度下降收斂的關鍵前提。
 
 ### 2.2 製作基礎統計指標 (Descriptive Statistics from Scratch)
 - 脫離高階工具的黑盒子，親手撰寫演算法計算各項數值統計量：
@@ -294,7 +313,7 @@ Provides 5 standalone verification modules (`./tester/tester.py --only [describe
 
 ---
 
-## 4. 實作架構設計 (How We Implement It)
+## 4. 架構設計 (How We Implement It)
 
 ### 4.1 專案目錄結構
 ```bash
@@ -316,7 +335,15 @@ dslr/
 │   └── utils/
 │       ├── __init__.py
 │       ├── stats.py            # 統計指標 (mean, std, quartiles, etc.)
-│       └── optimizers.py       # Sigmoid 與五大梯度下降優化器 (BGD, SGD, Mini, Momentum, Adam)
+│       ├── optimizers.py       # Sigmoid, L2 正則化與五大梯度下降優化器 (BGD, SGD, Mini, Momentum, Adam)
+│       ├── early_stopping.py   # EarlyStopping 早停類別與 TrainingHistory 歷程容器 (Bonus 4)
+│       └── learning_curves.py  # 學習曲線與全維度消融對比視覺化 (Bonus 4)
+├── plots/                      # 視覺化分析與訓練對比圖表輸出目錄
+│   ├── histogram.png           # 13 門課程 4 學院半透明直方圖矩陣
+│   ├── scatter_plot.png        # Astronomy vs. DADA 特徵相似度散布圖
+│   ├── pair_plot.png           # 特徵選擇散布圖矩陣
+│   ├── learning_curves.png     # 五大優化器 Loss vs. Epochs 收斂學習曲線
+│   └── visualization.png       # 四合一全維度消融對比儀表板
 ├── tester/
 │   └── tester.py               # 自動化測試與口試驗證腳本 (Pandas 誤差比對、AST 檢查、L2 與準確率驗證)
 ├── modele.csv                  # 訓練後輸出的權重與標準化參數
@@ -327,7 +354,9 @@ dslr/
 
 ### 4.2 模組職責劃分
 - **`src/utils/stats.py`**：實現數值型序列的純製作統計指標（含向量化 Bonus 指標），提供給 `describe.py`、`scatter_plot.py` 及標準化流程使用。
-- **`src/utils/optimizers.py`**：封裝 Sigmoid 激活函數與五大梯度下降優化演算法（BGD、SGD、Mini-batch GD、Momentum、Adam），並提供統一接口 `optimize()`。
+- **`src/utils/optimizers.py`**：封裝 Sigmoid 激活函數、$L_2$ 正則化懲罰與五大梯度下降優化演算法（BGD、SGD、Mini-batch GD、Momentum、Adam），並提供統一接口 `optimize()`。
+- **`src/utils/early_stopping.py`**：實作 `EarlyStopping` 監控類別（耐心計數器、最小改善閾值與最優權重回滾機制）與 `TrainingHistory` 訓練歷程容器。
+- **`src/utils/learning_curves.py`**：封裝 `plot_learning_curves()` 與 `visualize_benchmark()`，支援透過 `--visual` / `-v` 一鍵於 `plots/` 生成五大優化器收斂學習曲線（`plots/learning_curves.png`）與四合一全維度消融對比儀表板（`plots/visualization.png`）。
 - **`src/logreg_train.py` 與 `src/logreg_predict.py`**：負責資料清洗、保存訓練集統計參數（中位數、均值、標準差，防止 Data Leakage）、One-vs-All 模型訓練與最終學院預測輸出。
 - **`tester/tester.py`**：獨立的自動化測試與口試答辯驗證套件，涵蓋與官方 Pandas 數值精確度比對、極端邊界容錯測試、AST 語法樹合規掃描、$L_2$ 權重衰減數學驗證，以及端到端多類別分類準確率（$\ge 98\%$）與混淆矩陣評估。
 
@@ -335,7 +364,7 @@ dslr/
 關於特徵選擇推論、邏輯回歸完整數學推導與加分項目（Bonus Part）定義，請參閱：
 👉 **[`docs/walkthrough.md` — 細節與數學推導](./docs/walkthrough.md)**
 - **第 1 節**：各階段指南（`describe.py`、三大視覺化分析、`logreg_train.py` 與 `logreg_predict.py`，以及為何採用中位數填補缺失值）
-- **第 2 節**：數學原理與公式推導（Sigmoid 導數、對數損失 vs. MSE 凸優化與最大概似估計證明、梯度下降向量化、Z-score 標準化）
+- **第 2 節**：數學原理與公式推導（Sigmoid 導數、對數損失 vs. MSE 凸優化與最大概似估計證明、梯度下降向量化、特徵標準化）
 - **第 3 節**：Bonus 加分項目（9 項進階統計指標與 4 種進階梯度下降優化器）
 
 ---
@@ -379,8 +408,13 @@ pip install -r requirements.txt
 # Mandatory: 訓練模型並輸出權重檔 modele.csv
 ./src/logreg_train.py data/dataset_train.csv
 
-# Bonus: 指定進階優化器與 L2 正則化係數訓練
-./src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01
+# Bonus: 指定進階優化器、L2 正則化係數與早停機制 (Early Stopping) 訓練
+./src/logreg_train.py data/dataset_train.csv --opt adam --lambda 0.01 --early-stopping --patience 5
+
+# Bonus: 於 plots/ 生成學習曲線對比圖與四合一全維度消融儀表板 (輸出 plots/learning_curves.png 與 plots/visualization.png)
+./src/logreg_train.py data/dataset_train.csv --visual
+# 亦可結合早停機制進行收斂可視化：
+./src/logreg_train.py data/dataset_train.csv -e -v
 
 # 讀取測試資料與權重檔，產生預測結果 houses.csv
 ./src/logreg_predict.py data/dataset_test.csv modele.csv
@@ -388,21 +422,25 @@ pip install -r requirements.txt
 
 #### 4. 自動化測試與口試驗證腳本 (`tester/tester.py`)
 ```bash
-# 一鍵執行完整 5 大測試套件 (describe vs. Pandas 誤差、Bonus 統計指標、AST 合規掃描、L2 正則化與 >= 98% 準確率驗證)
+# 一鍵執行完整測試套件 (describe vs. Pandas 誤差、Bonus 統計指標、AST 合規掃描、L2 正則化與早停機制、>= 98% 準確率與繪圖管線)
 ./tester/tester.py
 
+# 一鍵執行完整測試套件並於 plots/ 生成全維度消融對比儀表板與學習曲線：
+./tester/tester.py --visual
+
 # 或僅執行特定測試項目：
-./tester/tester.py --only [describe|stats|ast|l2|e2e]
+./tester/tester.py --only [describe|stats|ast|l2|e2e|visual]
 ```
 
 ### 5.3 自動化測試解析：如何確認程式碼完整性與其數學意義 (`tester/tester.py`)
 
-提供 5 大獨立驗證模組（支援 `./tester/tester.py --only [describe|stats|ast|l2|e2e]`）：
+提供獨立驗證模組（支援 `./tester/tester.py --only [describe|stats|ast|l2|e2e|visual]`）：
 1. **`describe` vs. 官方 Pandas `df.describe()` 數值比對**：驗證 8 項 Mandatory 指標在雙精度浮點數機器極限（相對誤差 $\le 1.88 \times 10^{-15}$）下完全一致。
 2. **Bonus 1 進階統計指標與極端退化邊界測試**：驗證 7 項進階指標與皮爾森相關係數（`Astronomy` vs. `DADA`, $r = -1.000000$），並測試全 `NaN`、$N=1$、常數零變異欄（$s=0$）不發生除零崩潰。
 3. **AST 抽象語法樹靜態合規掃描**：透過 `ast.parse` 證明 `src/describe.py` 與 `src/utils/stats.py` 零調用任何禁用內建統計函式。
-4. **Sigmoid 極端值穩定度與 $L_2$ Weight Decay 驗證**：驗證 $z = \pm 1000$ 無溢位、截距項 $\theta_0$ 不受 $L_2$ 懲罰，以及特徵權重範數 $\|w\|_2$ 嚴格收縮。
-5. **端到端五大優化器基準測試與混淆矩陣**：無損備份工作區檔案，驗證 `bgd`, `sgd`, `mini`, `momentum`, `adam` 與 `--lambda 0.01` 全部超越 $\ge 98.0\%$ 門檻（實測 **98.94%**），並輸出 Precision / Recall / F1-Score、混淆矩陣（Confusion Matrix）與 `dataset_test.csv` 預測格式檢查。
+4. **Sigmoid 極端值穩定度、$L_2$ Weight Decay 與早停機制驗證**：驗證 $z = \pm 1000$ 無溢位、截距項 $\theta_0$ 不受 $L_2$ 懲罰、特徵權重範數 $\|w\|_2$ 嚴格收縮，以及損失平緩時早停機制（Early Stopping）正確提前終止並還原最佳權重。
+5. **端到端五大優化器基準測試、學習曲線視覺化與混淆矩陣**：無損備份工作區檔案，驗證 `bgd`, `sgd`, `mini`, `momentum`, `adam` 與 `--lambda 0.01` 全部超越 $\ge 98.0\%$ 門檻（實測 **98.19%**），驗證成功生成 `plots/learning_curves.png` 與 `plots/visualization.png`，並輸出 Precision / Recall / F1-Score、混淆矩陣（Confusion Matrix）與 `dataset_test.csv` 預測格式檢查。
+6. **視覺化 (`--visual`)**：生成圖表於 `plots/` （各類優化器收斂、$L_2$ 權重衰減範數 vs. 驗證準確率、課程特徵權重壓縮比對、Early Stopping 節省算力百分比）。
 
 👉 關於每項測試**如何確認程式碼完整性（Code Integrity）**及其**背後的數學意義（Mathematical Meaning）**之完整解析，請參閱：**[`docs/walkthrough.md` — Bonus 5](./docs/walkthrough.md#bonus-5-自動化測試與口試答辯驗證套件-testertesterpy)**。
 

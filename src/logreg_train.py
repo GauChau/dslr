@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import argparse
+import os
 import pandas as pd
 import numpy as np
 import describe as dc
 import utils.stats as st
-import matplotlib.pyplot as plt
 import utils.optimizers as opt_utils
 from utils.optimizers import sigmoid
 import sys
@@ -73,9 +73,12 @@ def main():
 	using a selected optimization algorithm and L2 regularization.
 
 	Arguments:
-	dataset : Path to the training dataset CSV file.
-	--opt   : Optimization algorithm (default: 'bgd'; choices: bgd, sgd, mini, momentum, adam).
-	--lambda: Non-negative L2 regularization strength (default: 0.0).
+	dataset          : Path to the training dataset CSV file.
+	--opt, -o        : Optimization algorithm (default: 'bgd'; choices: bgd, sgd, mini, momentum, adam).
+	--lambda, -l     : Non-negative L2 regularization strength (default: 0.0).
+	--early-stopping, -e : Enable early stopping to halt training when log loss plateaus.
+	--patience       : Consecutive epochs to wait for loss improvement before stopping (default: 10).
+	--visual / -v    : Generate visual benchmarks (learning_curves.png and visualization.png) saved to plots/.
 
 	Returns:
 	model_weights.csv: Learned feature weights and biases.
@@ -96,9 +99,33 @@ def main():
 		default=0.0,
 		help="Bonus L2 regularization strength lambda (default: 0.0; bias theta_0 is excluded)",
 	)
+	parser.add_argument(
+		"-v", "--visual",
+		action="store_true",
+		help="Bonus: Generate visual benchmarks (learning_curves.png and visualization.png) saved to plots/",
+	)
+	parser.add_argument(
+		"-p", "--plot",
+		dest="visual",
+		action="store_true",
+		help=argparse.SUPPRESS,
+	)
+	parser.add_argument(
+		"-e", "--early-stopping",
+		action="store_true",
+		help="Bonus: Enable early stopping if log loss plateaus for --patience consecutive epochs",
+	)
+	parser.add_argument(
+		"--patience",
+		type=int,
+		default=10,
+		help="Number of epochs to wait for loss improvement before early stopping (default: 10)",
+	)
 	args = parser.parse_args()
 	if args.l2_lambda < 0.0:
 		parser.error("--lambda must be non-negative (>= 0.0).")
+	if args.patience < 1:
+		parser.error("--patience must be a positive integer (>= 1).")
 
 	nom_fichier = args.dataset
 	dataset = pd.read_csv(nom_fichier, sep=",")
@@ -134,7 +161,30 @@ def main():
 		opt=args.opt,
 		learning_rate=learning_rate,
 		l2_lambda=args.l2_lambda,
+		early_stopping=args.early_stopping,
+		patience=args.patience,
 	)
+
+	if args.visual:
+		from utils.learning_curves import plot_learning_curves, visualize_benchmark
+
+		os.makedirs("plots", exist_ok=True)
+		plot_learning_curves(
+			hold_df,
+			weights,
+			bias,
+			l2_lambda=args.l2_lambda,
+			early_stopping=args.early_stopping,
+			patience=args.patience,
+			save_path="plots/learning_curves.png",
+		)
+		visualize_benchmark(
+			hold_df,
+			verification_df=verification_df,
+			weights=weights,
+			bias=bias,
+			save_path="plots/visualization.png",
+		)
 
 	# print(weights)
 

@@ -6,12 +6,14 @@ Tests:
   1. [Part 1 - Mandatory] describe.py vs. pandas.DataFrame.describe() numerical precision
   2. [Bonus 1] Extended stats.py metrics (var, range, iqr, skew, kurt, missing%, unique, pearson_corr) & edge cases
   3. [Rule Compliance] AST static check for forbidden built-in calls in describe.py & utils/stats.py
-  4. [Bonus 2 & 3] Sigmoid overflow stability, L2 (Ridge) weight decay & bias exclusion verification
-  5. [Part 3 - End-to-End] All 5 optimizers (bgd, sgd, mini, momentum, adam), houses.csv format check & sklearn accuracy_score (>= 98%)
+  4. [Bonus 2, 3 & 4] Sigmoid overflow stability, L2 (Ridge) weight decay, bias exclusion & Early Stopping verification
+  5. [Part 3 - End-to-End] All 5 optimizers, Learning Curves Plot, houses.csv format check & sklearn accuracy_score (>= 98%)
 """
 
 import argparse
 import ast
+import contextlib
+import io
 import pathlib
 import shutil
 import subprocess
@@ -50,7 +52,7 @@ def banner(title: str) -> None:
 
 def record_result(results: list[tuple[str, bool, str]], name: str, passed: bool, detail: str = "") -> None:
     status = f"{GREEN}[PASS]{RESET}" if passed else f"{RED}[FAIL]{RESET}"
-    print(f"  {status} {BOLD}{name}{RESET}" + (f" — {detail}" if detail else ""))
+    print(f"  {status} {BOLD}{name}{RESET}" + (f" —> {detail}" if detail else ""))
     results.append((name, passed, detail))
 
 
@@ -64,22 +66,25 @@ def test_describe_vs_pandas(results: list[tuple[str, bool, str]], tol: float = 1
     ref = df.describe()
 
     mandatory_metrics = ["count", "mean", "std", "min", "25%", "50%", "75%", "max"]
-    print(f"  {'Metric':<10} | {'Max Abs Error':<18} | {'Max Rel Error':<18} | {'Status'}")
-    print(f"  {'-' * 64}")
+    sample_col = "Arithmancy"
+    print(f"  {'Metric':<9} | {f'Result ({sample_col})':<21} | {'Max Abs Error':<15} | {'Max Rel Error':<15} | {'Status'}")
+    print(f"  {'-' * 74}")
 
     all_ok = True
     for metric in mandatory_metrics:
         if metric not in ours.index:
-            print(f"  {metric:<10} | {'MISSING ROW':<18} | {'N/A':<18} | {RED}FAIL{RESET}")
+            print(f"  {metric:<9} | {'MISSING ROW':<21} | {'N/A':<15} | {'N/A':<15} | {RED}FAIL{RESET}")
             all_ok = False
             continue
+        val = ours.loc[metric, sample_col]
+        val_str = f"{val:.6f}" if abs(val) < 1e7 else f"{val:.6e}"
         diff = (ours.loc[metric] - ref.loc[metric]).abs()
         max_abs_err = float(diff.max())
         max_rel_err = float((diff / ref.loc[metric].abs().replace(0, np.nan)).max())
         ok = bool(np.allclose(ours.loc[metric], ref.loc[metric], rtol=tol, atol=tol))
         all_ok = all_ok and ok
         badge = f"{GREEN}OK{RESET}" if ok else f"{RED}FAIL{RESET}"
-        print(f"  {metric:<10} | {max_abs_err:<18.6e} | {max_rel_err:<18.6e} | {badge}")
+        print(f"  {metric:<9} | {val_str:<21} | {max_abs_err:<15.3e} | {max_rel_err:<15.3e} | {badge}")
 
     record_result(
         results,
@@ -116,27 +121,44 @@ def test_bonus_stats(results: list[tuple[str, bool, str]], tol: float = 1e-9) ->
         ref_skew[col] = m3 / (m2 ** 1.5)
         ref_kurt[col] = (m4 / (m2 ** 2)) - 3.0
 
-    bonus_checks = [
-        ("var (s^2, ddof=1)", ours.loc["var"], ref_var),
-        ("range (max - min)", ours.loc["range"], ref_range),
-        ("iqr (Q75 - Q25)", ours.loc["iqr"], ref_iqr),
-        ("skew (Fisher-Pearson g1)", ours.loc["skew"], ref_skew),
-        ("kurt (Excess kurtosis g2)", ours.loc["kurt"], ref_kurt),
-        ("missing% (NaN ratio)", ours.loc["missing%"], ref_missing),
-        ("unique (cardinality)", ours.loc["unique"], ref_unique),
-    ]
+    bonus_metrics = ["var", "range", "iqr", "skew", "kurt", "missing%", "unique"]
+    ref_bonus = {
+        "var": ref_var,
+        "range": ref_range,
+        "iqr": ref_iqr,
+        "skew": ref_skew,
+        "kurt": ref_kurt,
+        "missing%": ref_missing,
+        "unique": ref_unique,
+    }
 
-    for label, s_ours, s_ref in bonus_checks:
-        diff = (s_ours - s_ref).abs()
-        abs_err = float(diff.max())
-        rel_err = float((diff / s_ref.abs().replace(0, np.nan)).fillna(0.0).max())
-        ok = bool(np.allclose(s_ours, s_ref, rtol=tol, atol=tol))
-        record_result(
-            results,
-            f"Bonus 1 Metric: {label}",
-            ok,
-            f"max_abs_err = {abs_err:.3e}, max_rel_err = {rel_err:.3e}",
-        )
+    sample_col = "Arithmancy"
+    print(f"  {'Metric':<9} | {f'Result ({sample_col})':<21} | {'Max Abs Error':<15} | {'Max Rel Error':<15} | {'Status'}")
+    print(f"  {'-' * 74}")
+
+    all_ok = True
+    for metric in bonus_metrics:
+        if metric not in ours.index:
+            print(f"  {metric:<9} | {'MISSING ROW':<21} | {'N/A':<15} | {'N/A':<15} | {RED}FAIL{RESET}")
+            all_ok = False
+            continue
+        val = ours.loc[metric, sample_col]
+        val_str = f"{val:.6f}" if abs(val) < 1e7 else f"{val:.6e}"
+        s_ref = ref_bonus[metric]
+        diff = (ours.loc[metric] - s_ref).abs()
+        max_abs_err = float(diff.max())
+        max_rel_err = float((diff / s_ref.abs().replace(0, np.nan)).fillna(0.0).max())
+        ok = bool(np.allclose(ours.loc[metric], s_ref, rtol=tol, atol=tol))
+        all_ok = all_ok and ok
+        badge = f"{GREEN}OK{RESET}" if ok else f"{RED}FAIL{RESET}"
+        print(f"  {metric:<9} | {val_str:<21} | {max_abs_err:<15.3e} | {max_rel_err:<15.3e} | {badge}")
+
+    record_result(
+        results,
+        "Bonus 1: describe.py 7 Extended metrics match reference implementations",
+        all_ok,
+        f"rtol/atol < {tol:.0e}",
+    )
 
     # Test Pearson correlation on Astronomy vs Defense Against the Dark Arts
     s_astro = num_df["Astronomy"]
@@ -208,10 +230,10 @@ def test_no_forbidden_builtins(results: list[tuple[str, bool, str]]) -> None:
 
 
 # =====================================================================
-# Test 4: Sigmoid Stability & Bonus 3 L2 Regularization Verification
+# Test 4: Sigmoid Stability, Bonus 3 L2 Regularization & Bonus 4 Early Stopping
 # =====================================================================
 def test_optimizers_and_l2(results: list[tuple[str, bool, str]]) -> None:
-    banner("TEST 4: Sigmoid Stability & Bonus 3 L2 Regularization (Ridge) Mechanics")
+    banner("TEST 4: Sigmoid Stability, Bonus 3 L2 Regularization (Ridge) & Bonus 4 Early Stopping")
 
     # 1. Sigmoid overflow protection on extreme values
     extreme_z = np.array([-1000.0, 0.0, 1000.0])
@@ -230,7 +252,7 @@ def test_optimizers_and_l2(results: list[tuple[str, bool, str]]) -> None:
     expected_pen = (2.0 / (2.0 * 10)) * 25.0  # 2.5
     record_result(
         results,
-        "Bonus 3 l2_penalty() Formula Check",
+        "l2_penalty() Formula Check",
         np.isclose(pen, expected_pen),
         f"computed = {pen:.4f}, expected = {expected_pen:.4f}",
     )
@@ -258,15 +280,58 @@ def test_optimizers_and_l2(results: list[tuple[str, bool, str]]) -> None:
 
     record_result(
         results,
-        "Bonus 3 Bias Exclusion (theta_0 unpenalized by L2)",
+        "Bias Exclusion (theta_0 unpenalized by L2)",
         bias_unpenalized,
         f"max |b_l2 - b_0| = {float((b_l2_reg - b_no_reg).abs().max()):.2e}",
     )
     record_result(
         results,
-        "Bonus 3 Weight Decay (||w||_2 shrinks when lambda > 0)",
+        "Weight Decay (||w||_2 shrinks when lambda > 0)",
         weight_decayed,
         f"||w||_2 (lambda=0) = {norm_no_reg:.4f} > ||w||_2 (lambda=50) = {norm_l2_reg:.4f}",
+    )
+
+    # 4. Bonus 4 Early Stopping verification
+    # 4a. Unit check EarlyStopping class logic (patience counter & parameter rollback)
+    from utils.early_stopping import EarlyStopping
+    es_unit = EarlyStopping(patience=2, min_delta=1e-3)
+    dummy_w1 = np.array([1.0, 2.0])
+    dummy_w2 = np.array([0.5, 1.5])
+    es_unit.update(loss=1.0, w=dummy_w1, b=0.0, epoch=1)
+    es_unit.update(loss=0.9999, w=dummy_w2, b=0.1, epoch=2)  # delta = 1e-4 < min_delta -> counter=1
+    halted = es_unit.update(loss=0.9998, w=dummy_w2, b=0.2, epoch=3)  # counter=2 >= patience -> True
+    restored_w, restored_b = es_unit.restore_best(dummy_w2, 0.2)
+    es_unit_ok = halted and np.array_equal(restored_w, dummy_w1) and restored_b == 0.0
+    record_result(
+        results,
+        "Bonus 4 EarlyStopping Unit Check (Patience Counter & Parameter Rollback)",
+        es_unit_ok,
+        f"halted = {halted}, restored best_loss = {es_unit.best_loss:.4f}",
+    )
+
+    # 4b. Optimizer integration check: halts when loss plateaus
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        _, _, hist_es = opt_utils.batch_gd(
+            synth_df,
+            init_w,
+            init_b,
+            learning_rate=0.01,
+            epochs=100,
+            early_stopping=True,
+            patience=3,
+            min_delta=0.01,
+            return_history=True,
+        )
+    for line in buf.getvalue().splitlines():
+        if line.strip():
+            print(f"  {line}")
+    stopped_early = any(ep is not None and ep < 100 for ep in hist_es.early_stopped.values())
+    record_result(
+        results,
+        "Early Stopping Optimizer Integration (Halts when Loss Plateaus)",
+        stopped_early,
+        f"Early stopped at epochs: {dict(hist_es.early_stopped)}",
     )
 
 
@@ -280,10 +345,11 @@ def test_end_to_end_and_accuracy(results: list[tuple[str, bool, str]]) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = pathlib.Path(tmpdir)
         backups = {}
-        for fname in ("modele.csv", "model_weights.csv", "houses.csv"):
+        for fname in ("modele.csv", "model_weights.csv", "houses.csv", "plots/learning_curves.png", "plots/visualization.png", "learning_curves.png", "visualization.png"):
             fpath = ROOT_DIR / fname
             if fpath.exists():
                 bpath = tmp_path / fname
+                bpath.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(fpath, bpath)
                 backups[fpath] = bpath
 
@@ -295,6 +361,8 @@ def test_end_to_end_and_accuracy(results: list[tuple[str, bool, str]]) -> None:
             print(f"\n  {'Optimizer':<12} | {'L2 Lambda':<10} | {'Train Acc (%)':<15} | {'Status (>= 98%)'}")
             print(f"  {'-' * 60}")
 
+            all_opts_ok = True
+            opt_accs = {}
             for opt_name in optimizers:
                 cmd_train = [
                     sys.executable,
@@ -305,7 +373,8 @@ def test_end_to_end_and_accuracy(results: list[tuple[str, bool, str]]) -> None:
                 ]
                 res_train = subprocess.run(cmd_train, cwd=str(ROOT_DIR), capture_output=True, text=True)
                 if res_train.returncode != 0:
-                    record_result(results, f"CLI logreg_train.py --opt {opt_name}", False, res_train.stderr.strip())
+                    print(f"  {opt_name:<12} | {'0.00':<10} | {'ERROR':<15} | {RED}FAIL{RESET}")
+                    all_opts_ok = False
                     continue
 
                 cmd_pred = [
@@ -316,20 +385,25 @@ def test_end_to_end_and_accuracy(results: list[tuple[str, bool, str]]) -> None:
                 ]
                 res_pred = subprocess.run(cmd_pred, cwd=str(ROOT_DIR), capture_output=True, text=True)
                 if res_pred.returncode != 0:
-                    record_result(results, f"CLI logreg_predict.py ({opt_name})", False, res_pred.stderr.strip())
+                    print(f"  {opt_name:<12} | {'0.00':<10} | {'ERROR':<15} | {RED}FAIL{RESET}")
+                    all_opts_ok = False
                     continue
 
                 preds_df = pd.read_csv(ROOT_DIR / "houses.csv")
                 acc = accuracy_score(y_true_train, preds_df["Hogwarts House"]) * 100.0
                 passed_98 = acc >= 98.0
+                all_opts_ok = all_opts_ok and passed_98
+                opt_accs[opt_name] = acc
                 badge = f"{GREEN}PASS{RESET}" if passed_98 else f"{YELLOW}WARN (< 98%){RESET}"
                 print(f"  {opt_name:<12} | {0.0:<10.2f} | {acc:<15.2f} | {badge}")
-                record_result(
-                    results,
-                    f"Optimizer '{opt_name}' Training Accuracy >= 98.0%",
-                    passed_98,
-                    f"Accuracy = {acc:.2f}%",
-                )
+
+            min_acc = min(opt_accs.values()) if opt_accs else 0.0
+            record_result(
+                results,
+                "Bonus 2: 5 Optimizers Training Accuracy >= 98.0%",
+                all_opts_ok,
+                f"All models achieved >= 98.0% (min: {min_acc:.2f}%)",
+            )
 
             # Test CLI with --lambda 0.01 on default BGD and print detailed confusion matrix
             subprocess.run(
@@ -397,19 +471,73 @@ def test_end_to_end_and_accuracy(results: list[tuple[str, bool, str]]) -> None:
                 f"rows = {len(test_houses)}, columns = {list(test_houses.columns)}, NaN = 0",
             )
 
+            # Test CLI Bonus 4: --visual and --early-stopping
+            plot_file = ROOT_DIR / "plots" / "learning_curves.png"
+            dash_file = ROOT_DIR / "plots" / "visualization.png"
+            if plot_file.exists():
+                plot_file.unlink()
+            if dash_file.exists():
+                dash_file.unlink()
+
+            cmd_bonus4 = [
+                sys.executable,
+                str(SRC_DIR / "logreg_train.py"),
+                str(DATA_TRAIN),
+                "--opt", "adam",
+                "--early-stopping",
+                "--patience", "5",
+                "--visual",
+            ]
+            res_bonus4 = subprocess.run(cmd_bonus4, cwd=str(ROOT_DIR), capture_output=True, text=True)
+            plot_generated = plot_file.exists() and plot_file.stat().st_size > 1000
+            dash_generated = dash_file.exists() and dash_file.stat().st_size > 1000
+            record_result(
+                results,
+                "Bonus 4 CLI Pipeline (--visual & --early-stopping -> plots/)",
+                res_bonus4.returncode == 0 and plot_generated and dash_generated,
+                f"learning_curves.png ({plot_file.stat().st_size if plot_file.exists() else 0} bytes), visualization.png ({dash_file.stat().st_size if dash_file.exists() else 0} bytes)",
+            )
+
         finally:
             # Restore original workspace files
             for orig_path, bpath in backups.items():
+                orig_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(bpath, orig_path)
+
+
+def test_visual_benchmark(results: list[tuple[str, bool, str]]) -> None:
+    banner("BENCHMARK VISUALIZATION: plots/ Generation")
+    lc_file = ROOT_DIR / "plots" / "learning_curves.png"
+    dash_file = ROOT_DIR / "plots" / "visualization.png"
+
+    cmd = [
+        sys.executable,
+        str(SRC_DIR / "logreg_train.py"),
+        str(DATA_TRAIN),
+        "--visual",
+    ]
+    res = subprocess.run(cmd, cwd=str(ROOT_DIR), capture_output=True, text=True)
+    generated = lc_file.exists() and dash_file.exists() and lc_file.stat().st_size > 1000 and dash_file.stat().st_size > 1000
+    record_result(
+        results,
+        "Benchmark Dashboard Generation (--visual -> plots/)",
+        res.returncode == 0 and generated,
+        f"plots/learning_curves.png ({lc_file.stat().st_size if lc_file.exists() else 0} bytes), plots/visualization.png ({dash_file.stat().st_size if dash_file.exists() else 0} bytes)",
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="DSLR Automated Verification & Defense Test Suite")
     parser.add_argument(
         "--only",
-        choices=["describe", "stats", "ast", "l2", "e2e"],
+        choices=["describe", "stats", "ast", "l2", "e2e", "visual"],
         default=None,
         help="Run only a specific test group",
+    )
+    parser.add_argument(
+        "--visual",
+        action="store_true",
+        help="Generate comprehensive benchmark plots in plots/ (learning_curves.png and visualization.png) comparing optimizers, L2 regularization, and Early Stopping",
     )
     args = parser.parse_args()
 
@@ -425,6 +553,8 @@ def main() -> None:
         test_optimizers_and_l2(results)
     if args.only in (None, "e2e"):
         test_end_to_end_and_accuracy(results)
+    if args.only == "visual" or (args.only is None and args.visual):
+        test_visual_benchmark(results)
 
     banner("FINAL TEST SUMMARY")
     passed_count = sum(1 for _, ok, _ in results if ok)

@@ -17,12 +17,17 @@ from .stats import (
 from .optimizers import (
     sigmoid,
     l2_penalty,
+    compute_log_loss,
     batch_gd,
     stochastic_gd,
     mini_gd,
     momentum_gd,
     adam_gd,
     optimize,
+)
+from .early_stopping import (
+    EarlyStopping,
+    TrainingHistory,
 )
 
 __all__ = [
@@ -42,10 +47,13 @@ __all__ = [
     "pearson_corr",
     "sigmoid",
     "l2_penalty",
+    "compute_log_loss",
     "batch_gd",
     "stochastic_gd",
     "mini_gd",
     "momentum_gd",
     "adam_gd",
     "optimize",
+    "EarlyStopping",
+    "TrainingHistory",
 ]

@@ -4,7 +4,7 @@
   </a>
 </p>
 
-# DSLR 實作詳解與數學推導指南
+# DSLR 製作細節與數學推導
 ## 📖 目錄 (Table of Contents)
 - [1. 基礎項目](#1-基礎項目)
   - [Part 1: 描述性統計 (`describe.py`)](#part-1-描述性統計-describepy)
@@ -15,7 +15,7 @@
   - [2.1 Sigmoid 函數](#21-sigmoid-函數)
   - [2.2 成本函數 (Cost Function)](#22-成本函數-cost-function)
   - [2.3 梯度下降：批次梯度下降 (Batch Gradient Descent, BGD — `--opt bgd [default]`)](#23-梯度下降批次梯度下降-batch-gradient-descent-bgd----opt-bgd-default)
-  - [2.4 特徵標準化 (Feature Standardization / Z-score)](#24-特徵標準化-feature-standardization--z-score)
+  - [2.4 特徵標準化 (Feature Standardization)](#24-特徵標準化-feature-standardization)
 - [3. 加分項目](#3-加分項目)
   - [Bonus 1: `src/utils/stats.py` 擴充統計指標](#bonus-1-srcutilsstatspy-擴充統計指標)
   - [Bonus 2: `src/utils/optimizers.py` 各類梯度下降優化演算法與其優點](#bonus-2-srcutilsoptimizerspy-各類梯度下降優化演算法與其優點)
@@ -65,7 +65,7 @@
 - **流程**：
   1. **資料清洗**：過濾非數值欄位（姓名 `First Name`, `Last Name`、生日 `Birthday`、慣用手 `Best Hand` 等），並剔除無效特徵。
   2. **缺失值處理（Imputation）**：計算訓練集中各選取特徵之**中位數（Median，$50\%$ 分位數）**並補齊遺失值（`NaN`）。
-  3. **特徵標準化**：計算各特徵之 $\mu$ 與 $\sigma$，轉換為標準常態分佈 Z-score。
+  3. **特徵標準化**：計算各特徵之 $\mu$ 與 $\sigma$，轉換為標準常態分佈。
   4. **One-vs-All 標籤構建**：將 4 個學院標籤轉換為 4 組二元標籤向量（$y \in \{0, 1\}$）。
   5. **模型訓練**：增加 Bias 偏置項（插入全為 $1$ 的欄位 $x_0 = 1$），使用梯度下降演算法迭代更新權重矩陣 $\theta$。
   6. **儲存權重**：將 4 個分類器的權重、偏置項與標準化參數（Median / Mean / Std）儲存至權重檔。
@@ -121,7 +121,7 @@ $$J(\theta) = -\frac{1}{m} \sum_{i=1}^{m} \Big[ y^{(i)} \log(h_\theta(x^{(i)})) 
 - 當真實標籤 $y=0$ 時，若 $h_\theta(x) \to 1$，懲罰項趨近於無窮大 $\infty$。
 - 此損失函數在參數空間內是嚴謹**凸函數（Convex）**，不存在局部極小值（Local Minima），能保證梯度下降收斂至全局最優解。
 
-> #### 💡 深入剖析：為什麼邏輯回歸使用此特定的交叉熵成本函數？（Why this Cost Function?）
+> #### 💡 深入剖析：為什麼邏輯回歸使用此特定的對數成本函數？（Why this Cost Function?）
 > 線性回歸通常使用均方誤差（MSE, Mean Squared Error），但邏輯回歸必須使用對數損失（Log Loss），核心原因包括：
 > 1. **凸優化保證（Convexity vs. Non-Convexity）**：
 >    - 若將線性回歸的 MSE 直接套用在邏輯回歸上，由於複合了非線性的 Sigmoid 函數 $h_\theta(x) = \frac{1}{1 + e^{-\theta^T x}}$，損失曲面將變成**非凸函數（Non-Convex）**。此時曲面充滿大量局部極小值（Local Minima）與梯度趨近零的鞍點／平原區（Plateaus），導致梯度下降容易卡在局部劣解。
@@ -129,10 +129,10 @@ $$J(\theta) = -\frac{1}{m} \sum_{i=1}^{m} \Big[ y^{(i)} \log(h_\theta(x^{(i)})) 
 > 2. **數學理論源頭：最大概似估計（Maximum Likelihood Estimation, MLE）**：
 >    - 邏輯回歸本質是在估計條件機率：$P(y=1 \mid x) = h_\theta(x)$，而 $P(y=0 \mid x) = 1 - h_\theta(x)$。
 >    - 樣本標籤服從**伯努利分佈（Bernoulli Distribution）**：$P(y \mid x) = (h_\theta(x))^y (1 - h_\theta(x))^{1-y}$。
->    - 假設樣本獨立同分布（i.i.d.），整體資料集的聯合概似函數為 $L(\theta) = \prod_{i=1}^m P(y^{(i)} \mid x^{(i)})$。對概似函數取負對數（Negative Log-Likelihood, NLL）並除以 $m$，便自然推導出對數成本函數。**最小化交叉熵損失，在數學本質上完全等價於最大化觀測樣本的概似機率**。
+>    - 假設樣本獨立同分布（i.i.d.），整體資料集的聯合概似函數為 $L(\theta) = \prod_{i=1}^m P(y^{(i)} \mid x^{(i)})$。對概似函數取負對數（Negative Log-Likelihood, NLL）並除以 $m$，便自然推導出對數成本函數。**最小化對數損失，在數學本質上完全等價於最大化觀測樣本的概似機率**。
 > 3. **懲罰機制與避免梯度消失（Preventing Gradient Vanishing）**：
 >    - **嚴厲懲罰自信的錯誤**：當真實值 $y=1$ 但預測 $h_\theta(x) \to 0$ 時，損失 $-\log(h_\theta(x)) \to \infty$；反之 $y=0$ 預測 $h_\theta(x) \to 1$ 亦趨向無窮大，能對嚴重的預測偏差施加巨大的梯度回饋。
->    - **優雅求導與穩定梯度**：若使用 MSE，在預測嚴重錯誤處（$z = \theta^T x \gg 0$ 但 $y=0$），Sigmoid 的導數 $\sigma'(z) \approx 0$，會造成**梯度消失（Gradient Vanishing）**使模型停滯不前。而交叉熵損失求偏導時，對數與指數完美抵消，得到極度優雅的線性梯度公式：
+>    - **優雅求導與穩定梯度**：若使用 MSE，在預測嚴重錯誤處（$z = \theta^T x \gg 0$ 但 $y=0$），Sigmoid 的導數 $\sigma'(z) \approx 0$，會造成**梯度消失（Gradient Vanishing）**使模型停滯不前。而對數損失求偏導時，對數與指數完美抵消，得到極度優雅的線性梯度公式：
 >      $$\frac{\partial J(\theta)}{\partial \theta_j} = \frac{1}{m} \sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x_j^{(i)}$$
 >      **誤差 $(h_\theta(x) - y)$ 越懸殊，梯度就越大，模型校正速度就越快**，確保了訓練的穩定與高效收斂。
 
@@ -146,12 +146,12 @@ $$\theta := \theta - \alpha \nabla_\theta J(\theta) = \theta - \frac{\alpha}{m} 
   - 梯度估計無雜訊，每一步都精確朝向全局最優解（Global Minimum）下降，收斂軌跡最平滑穩定。
   - 缺點是每更新一次權重就必須遍歷整張資料表，在超大型資料集上單步運算成本高。
 
-### 2.4 特徵標準化 (Feature Standardization / Z-score)
+### 2.4 特徵標準化 (Feature Standardization)
 各魔法課程成績的分數尺度與變異程度差異極大（例如 `Arithmancy` 分數高達數萬，而 `Herbology` 介於 $-10$ 至 $10$ 之間）。若不進行標準化，損失函數的等高線將呈現狹長扁平橢圓形，導致梯度下降劇烈震盪甚至發散。
 標準化公式：
 $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 其中 $\mu$ 為該特徵平均值，$\sigma$ 為樣本標準差。
-> **注意**：測試集必須使用**訓練集**所計算出的 $\mu$ 與 $\sigma$ 進行標準化，防止資料外洩（Data Leakage）。
+> **注意**：將資料拆分成 **80%** 訓練集與 **20%** 驗證集，是為了評估模型對未參與訓練的資料的泛化能力。為避免資料外洩，標準化時應只使用訓練集計算的 $\mu$ 與 $\sigma$，再將這些參數套用到訓練集與驗證集。資料外洩（Data Leakage）是指模型在訓練或模型選擇過程中，取得了原本不應該使用的資訊，導致評估結果無法真實反映模型在新資料上的表現。
 
 ---
 
@@ -168,7 +168,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 
 ### Bonus 1: `src/utils/stats.py` 擴充統計指標
 
-我們已在 `src/utils/stats.py` 與 `src/describe.py` 中利用 **「複用製作基礎函式 + 底層 NumPy/Pandas 陣列向量化（Vectorization）」** 實作了以下 9 項進階統計與相關性指標，完全避開禁用函式並大幅提升運算速度。以下為各項指標之數學定義與口試答辯解析：
+我們已在 `src/utils/stats.py` 與 `src/describe.py` 中利用 **「複用製作基礎函式 + 底層 NumPy/Pandas 陣列向量化（Vectorization）」** 製作了以下 9 項進階統計與相關性指標，完全避開禁用函式並大幅提升運算速度。以下為各項指標之數學定義與口試答辯解析：
 
 #### 1. 無偏樣本變異數 (Unbiased Sample Variance — `dfvar`)
 - **定義**：
@@ -181,7 +181,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 - **定義**：
   $$s = \sqrt{s^2} = \sqrt{\frac{1}{n - 1} \sum_{i=1}^{n} (x_i - \bar{x})^2}$$
 - **統計意義**：
-  將變異數開平方根，使單位（量綱）還原至與原始特徵一致，並作為後續 Z-score 標準化 $z = \frac{x - \bar{x}}{s}$ 的縮放基準。在 `stats.py` 中直接以單行 Series 向量化 `return dfvar(dataframe) ** 0.5` 實作。
+  將變異數開平方根，使單位（量綱）還原至與原始特徵一致，並作為後續標準化 $z = \frac{x - \bar{x}}{s}$ 的縮放基準。在 `stats.py` 中直接以單行 Series 向量化 `return dfvar(dataframe) ** 0.5`。
 
 #### 3. 全距 (Range — `dfrange`)
 - **定義**：
@@ -244,7 +244,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 
 ### Bonus 2: `src/utils/optimizers.py` 各類梯度下降優化演算法與其優點
 
-除了第 2.3 節預設的批次梯度下降（`--opt bgd`）外，我們在 `src/utils/optimizers.py` 中額外實作了 4 種進階梯度下降優化演算法，並透過統一接口 `optimize()` 與 `src/logreg_train.py` 的 `--opt` 參數串接（支援 `--opt [bgd|sgd|mini|momentum|adam]`）。以下為各演算法之定義與核心優點：
+除了第 2.3 節預設的批次梯度下降（`--opt bgd`）外，我們在 `src/utils/optimizers.py` 中額外設計了 4 種進階梯度下降優化演算法，並透過統一接口 `optimize()` 與 `src/logreg_train.py` 的 `--opt` 參數串接（支援 `--opt [bgd|sgd|mini|momentum|adam]`）。以下為各演算法之定義與核心優點：
 
 #### 1. 隨機梯度下降 (Stochastic Gradient Descent, SGD — `--opt sgd`)
 - **定義**：
@@ -265,7 +265,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 
 #### 3. 動量梯度下降法 (Gradient Descent with Momentum — `--opt momentum`)
 - **定義**：
-  引入物理學中的**「動量／速度向量（Velocity $v_t$）」**，對過去的梯度進行指數移動平均（Exponentially Weighted Moving Average，動量衰減係數 $\beta = 0.9$）：
+  引入物理學中的 **「動量／速度向量（Velocity $v_t$）」**，對過去的**梯度**進行指數移動平均（Exponentially Weighted Moving Average，動量衰減係數 $\beta = 0.9$）：
   $$v_t = \beta v_{t-1} + (1 - \beta) g_t$$
   $$\theta_{t+1} = \theta_t - \alpha v_t$$
 - **核心原理與優點**：
@@ -306,15 +306,22 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 
 ### Bonus 3: 正則化機制 ($L_2$ Regularization / Ridge)
 
+#### 0. 什麼是 $L_2$？
+- **$L$（Lebesgue）**：源自泛函分析中的 **$L^p$ 勒貝格空間（Lebesgue Space）**，以法國數學家昂利·勒貝格（Henri Lebesgue）命名。在數學中，$L$ 代表基於勒貝格積分定義的測度與範數體系。
+- **$2$（二階次數 / 平方和）**：表示使用平方來衡量向量大小，加總後再取平方根（即 $p = 2$）。
+- **$L_2$ 範數（$L_2$ Norm / Euclidean Norm）**：在機器學習的有限維實數參數向量 $w \in \mathbb{R}^n$ 中，它就是我們最熟悉的**歐幾里得範數（長度）**：
+  $$\|w\|_2 = \sqrt{\sum_{j=1}^n w_j^2} = \sqrt{w_1^2 + w_2^2 + \dots + w_n^2}$$
+  在 $L_2$ 正則化中，懲罰項採用的是其平方 $\|w\|_2^2 = \sum_{j=1}^n w_j^2$，因而處處可微（Differentiable）且計算平滑。
+
 #### 1. 為什麼需要 $L_2$ 正則化？
 為防止模型權重過大造成過度擬合（Overfitting），在損失函數中加入 $L_2$ 懲罰項。模型將學生分到某學院的預測機率為 $h_{w,b}(x) = \sigma(w^T x + b) = \frac{1}{1 + e^{-(w^T x + b)}}$。若沒有正則化，會面臨三個問題：
-- **權重無限膨脹（Weight Explosion）**：為了讓訓練集上的交叉熵損失（Log Loss）趨近於 $0$，模型會試圖做出「百分之百自信」的預測（讓 $h_{w,b}(x) \to 1$ 或 $0$）。由於 Sigmoid 只有在輸入趨近 $\pm\infty$ 時才會到達 $1$ 或 $0$，梯度下降會驅使權重 $w_j$ 越長越大。
+- **權重無限膨脹（Weight Explosion）**：為了讓訓練集上的對數損失（Log Loss）趨近於 $0$，模型會試圖做出「百分之百自信」的預測（讓 $h_{w,b}(x) \to 1$ 或 $0$）。由於 Sigmoid 只有在輸入趨近 $\pm\infty$ 時才會到達 $1$ 或 $0$，梯度下降會驅使權重 $w_j$ 越長越大。
 - **過度敏感與死記雜訊（Overfitting）**：當少數課程的權重 $w_j$ 變得極大時，只要測試集學生的某科成績有微小波動或離群值（Outlier），算出來的 $w^T x + b$ 就會劇烈震盪，導致分類錯誤。
 - **共線性權重失控（Multicollinearity）**：當兩門課高度相關（如 `Astronomy` 與 `Defense Against the Dark Arts`）時，無正則化模型可能賦予極端權重；而 $L_2$ 偏好「小而分散」的權重（因為 $250^2 + 250^2 \ll 1000^2 + 0^2$），能穩定分配共線特徵的權重。
 
 #### 2. 定義與「權重衰減（Weight Decay）」推導
 - **步驟一：在損失函數加上「權重平方和罰款」**（對應 `src/utils/optimizers.py` 的 `l2_penalty()`）：
-  $$J_{\text{reg}}(w, b) = \underbrace{J(w, b)}_{\text{原始交叉熵損失}} + \underbrace{\frac{\lambda}{2m} \sum_{j=1}^{n} w_j^2}_{\text{L2 懲罰項}}$$
+  $$J_{\text{reg}}(w, b) = \underbrace{J(w, b)}_{\text{原始對數損失}} + \underbrace{\frac{\lambda}{2m} \sum_{j=1}^{n} w_j^2}_{\text{L2 懲罰項}}$$
   - **$\lambda \ge 0$（即 CLI 的 `--lambda` 參數）**：控制懲罰力道。當 $\lambda = 0$ 時退化為原始邏輯回歸；$\lambda$ 越大，對大權重的懲罰越重（分母除以 $2$ 是為了微分時與次方 $2$ 剛好約分抵消）。
 - **步驟二：在梯度更新時產生「權重衰減（Weight Decay）」**：
   對特徵權重 $w_j\ (j \ge 1)$ 求偏導數後，梯度多了一項線性懲罰 $\frac{\lambda}{m} w_j$：
@@ -326,8 +333,19 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 > #### 💡 口試答辯必考細節（Peer Defense Q&A）
 > 1. **為什麼偏置項 Bias $\theta_0$（程式碼中的 `b`）不參與正則化？**
 >    - 偏置項 $b$ 沒有乘上任何輸入特徵 $x_j$，它只決定決策超平面在空間中的**整體平移門檻（基準機率）**，不會因為 $b$ 較大而放大輸入資料的雜訊（Variance）。若連 $b$ 一起懲罰壓向 $0$，反而會強迫決策邊界通過原點附近，造成不必要的偏差（Underfitting）。因此在 `optimizers.py` 中，只有 `grads` 加上 `(l2_lambda / m_samples) * w`，而 `grad_bias` 完全不加懲罰項。
-> 2. **為什麼使用 $L_2$ 正則化前必須先做 Z-score 特徵標準化？**
->    - 因為 $L_2$ 使用同一個係數 $\lambda$ 平等懲罰所有權重平方和 $\sum w_j^2$。若未標準化，分數高達數萬分的科目（如 `Arithmancy`）其權重 $w_j$ 天生極小，而分數僅在 $-10 \sim 10$ 的科目（如 `Herbology`）其權重 $w_j$ 天生較大，$L_2$ 就會不公平地重罰數值尺度小的科目。先做 Z-score 標準化讓所有特徵同尺度，$\lambda$ 的懲罰才具備公平性。
+> 2. **為什麼使用 $L_2$ 正則化前必須先將特徵標準化？**
+>    - 因為 $L_2$ 使用同一個係數 $\lambda$ 平等懲罰所有權重平方和 $\sum w_j^2$。若未標準化，分數高達數萬分的科目（如 `Arithmancy`）其權重 $w_j$ 天生極小，而分數僅在 $-10 \sim 10$ 的科目（如 `Herbology`）其權重 $w_j$ 天生較大，$L_2$ 就會不公平地重罰數值尺度小的科目。先標準化讓所有特徵同尺度，$\lambda$ 的懲罰才具備公平性。
+> 3. **為什麼在消融實驗（`--visual`）中，$\lambda$ 的大小與驗證集準確率幾乎沒有顯著關聯？**
+>    - **「0-1 損失（準確率）」與「對數損失（Log Loss）」的本質差異**：準確率是階梯函數（Step Function），只要樣本沒有橫跨那條 $0.5$ 邊界，準確率就不會動。而 $L_2$ 正則化保護的是平滑的機率校準與模型泛化能力（防止權重過大對離群值過度敏感）。
+>    - **資料集的高分離度與幾何邊界（Large Margin）**：霍格華茲資料集在核心科目上（如 `Herbology`, `Astronomy`, `Ancient Runes`, `Flying`）具備強大的幾何邊界與分離度。在多類別分類中，預測依據是取最大者 $\arg\max_k (w_k^T x + b_k)$。$L_2$ 正則化懲罰縮短了權重長度，但沒有大幅改變權重在特徵空間中的朝向（方向）。因此雖然 Sigmoid 機率從原本極端的 $0.999$ 被平滑為 $0.85$，但樣本的相對大小排名（$\arg\max$）完全不變，因而準確率保持穩定。
+>    - **極限欠擬合實驗（Underfitting Threshold）**：實測將 $\lambda$ 放大至極端數值：
+>      - $\lambda = 0 \sim 2000$：準確率穩定在 **$97.19\%$**（$\|w\|_2$ 從 $2.83$ 縮至 $0.62$）。
+>      - $\lambda = 5000$：$\|w\|_2 = 0.30$，準確率開始跌至 **$91.88\%$**。
+>      - $\lambda = 10000$：$\|w\|_2 = 0.16$，模型嚴重欠擬合，準確率暴跌至 **$59.06\%$**。
+>      這證明了在合理的正則化範圍（$\lambda \le 200$）內，模型兼具了防止過擬合的抗噪能力與堅固的分類精確度。
+> 4. **既然準確率看不出明顯變化，消融實驗如何證明 $L_2$ 正則化在此有效發揮了作用？**
+>    - **雜訊特徵被壓縮趨近於 0**：在 EDA 直方圖中四學院完全重疊、毫無區分度的課程（如 `Care of Magical Creatures` 與 `Arithmancy`），在 $\lambda=50$ 下的權重被壓到只剩微不足道的 $0.018$；而真正有區分度的特徵（如 `Ancient Runes`）則頂住懲罰，維持主導地位。這證明 $L_2$ 正確扮演了「平滑特徵降維與抗噪」的物理角色。
+>    - **模型機率更誠實（Well-Calibrated）**：無正則化時，模型可能會盲目自大地給出 $99.99\%$ 的極端機率；加上 $L_2$ 正則化後，模型機率更為平緩（如 $85\%$），這在真實世界面對未知的離群樣本時，模型的容錯率與穩健性（Robustness）是遠高於無正則化模型的！
 
 #### 3. 支援範圍與 CLI 指令範例
 五種優化器（`batch_gd`, `stochastic_gd`, `mini_gd`, `momentum_gd`, `adam_gd`）與統一接口 `optimize()` 皆支援 `l2_lambda` 參數（預設 `0.0`）：
@@ -341,18 +359,88 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 
 ---
 
-### Bonus 4: 學習曲線視覺化與 Early Stopping
+### Bonus 4: 學習曲線視覺化與 Early Stopping (`src/utils/early_stopping.py` & `src/utils/learning_curves.py`)
 
-- **實作設計**：
-  1. **記錄訓練與驗證損失**：在每個訓練週期（epoch）結束時記錄對數損失與當前準確率。
-  2. **學習曲線繪圖 (`--plot` 開關)**：繪製 $\text{Loss vs. Epochs}$ 曲線，直觀比較 BGD、Mini-batch GD、SGD、Momentum 與 Adam 的收斂動態。
-  3. **早停機制 (Early Stopping)**：當損失在連續 $P$ 個訓練週期改善幅度小於閾值 $\text{tol}$ 時自動提早終止訓練，節省算力並避免過度擬合。
+#### 1. 學習曲線視覺化 (`src/utils/learning_curves.py` — `--visual` / `-v`)
+- **設計理念與圖表架構**：
+  在機器學習與深度學習中，「損失隨訓練週期變化（Loss vs. Epochs）」的學習曲線是診斷優化器收斂速度、數值穩定性、步長適應性與過度擬合最直觀且強大的視覺化工具。
+  當使用者在執行 `logreg_train.py` 時傳入 `-v` 或 `--visual` 參數，系統將自動於根目錄下建立 `plots/` 目錄，並同時呼叫 `plot_learning_curves()` 與 `visualize_benchmark()`。
+  其中，`plot_learning_curves()` 以統一標準基準（相同資料分割、標準化特徵與初始權重 $\theta = 0$）對 5 大梯度下降演算法（BGD、SGD、Mini-batch、Momentum、Adam）進行收斂對比評測，並繪製成 $2 \times 3$ 的高解析度圖表矩陣，輸出為 `plots/learning_curves.png`：
+  - **子圖 (0,0) 至 (1,0) [共 4 張]**：分別展示 4 個學院（Gryffindor, Hufflepuff, Ravenclaw, Slytherin）在 5 大優化器下的二元對數損失（Log Loss）收斂軌跡。若觸發早停機制，圖中將以星號（$\star$）精確標註早停發生的 Epoch 與對應損失值。
+  - **子圖 (1,1)**：4 個學院整體平均對數損失（Overall Mean Loss）收斂曲線，清晰展現各優化器的宏觀收斂速度與極限損失表現。
+  - **子圖 (1,2)**：橫向長條圖（Bar Chart），橫向對比 5 大優化器的最終平均損失數值與實際耗費 Epoch 數，提供一目了然的效能評比。
+
+> **關於學習曲線中「星號（$\star$）」的具體意義**：
+> 當啟用 `--early-stopping`（`-e`）時，各學院的獨立 One-vs-All 分類器若在訓練中達到早停條件（即連續 `--patience` 輪改善量 $< 10^{-4}$），曲線便會停止延伸，並在**提前終止的該輪（Epoch）與當前損失值坐標上打上一顆顯著的五角星號（$\star$）**。這代表：
+> 1. **訓練在此輪正式凍結**，防止在損失平原上無效空轉；
+> 2. **參數在此刻自動回滾**至歷史最優權重 $\theta^*$；
+> 3. 若某條曲線尾端**沒有星號**，則代表該優化器在整個 100 輪內每輪皆能維持實質進展（改善量 $> 10^{-4}$），因此順暢跑滿設定的 Horizon。
+
+- **五大優化器收斂特徵分析（口試答辯重點）**：
+  1. **Batch GD (BGD)**：曲線呈現最平滑的單調遞減軌跡，因為每一步梯度皆在全體樣本上精確計算，零雜訊，但收斂速度較慢。
+  2. **Stochastic GD (SGD)**：曲線呈現輕微震盪但以極陡峭的速度快速下降，僅需數十輪即可抵達低損失區，震盪源於單一樣本梯度的方差，能協助跳脫平坦區域。
+  3. **Mini-batch GD (B=32)**：在平滑度與收斂速度之間達到最佳平衡，兼具向量化計算效率與適度隨機性。
+  4. **Momentum GD**：初期具備強大慣性衝力，能迅速穿越平緩坡度，收斂斜率顯著大於標準 BGD。
+  5. **Adam**：結合一階動差與二階動差自適應步長調整，初期快速下降並在最少輪次內達到極致平穩收斂。
+
+#### 2. 早停機制 (`src/utils/early_stopping.py` — `--early-stopping` / `-e`, `--patience`)
+- **數學定義與演算法邏輯**：
+  在迭代優化過程中，持續訓練至固定週期上限可能導致模型在損失平原上空轉或對訓練集雜訊過度擬合（Overfitting）。早停機制透過動態追蹤歷史最優對數損失 $J^*_{\text{best}}$，監控模型是否停止實質改善：
+  $$\Delta J_t = J^*_{\text{best}} - J_t$$
+  若在當前 Epoch $t$ 中，損失改善幅度大於設定閾值 $\epsilon_{\text{min\_delta}}$（預設 $10^{-4}$）：
+  $$J^*_{\text{best}} := J_t, \quad \theta^* := \theta_t, \quad \text{patience\_counter} := 0$$
+  若改善幅度未達閾值（$\Delta J_t \le \epsilon_{\text{min\_delta}}$），則耐受度計數器累加：
+  $$\text{patience\_counter} := \text{patience\_counter} + 1$$
+  當累計連續未實質改善次數達到設定之耐受度閾值 $P$（`--patience`，預設 10 輪）時：
+  $$\text{patience\_counter} \ge P \implies \text{終止訓練 (Halt Optimization)}$$
+  **關鍵保護**：提前終止時，系統自動將模型權重與偏置項回滾至歷史最佳狀態 $\theta^*$，而非保留可能已因震盪劣化或過度擬合的最終週期權重。
+
+- **CLI 指令範例**：
+  ```bash
+  # 啟用早停機制（預設 patience=10）
+  ./src/logreg_train.py data/dataset_train.csv -e
+
+  # 指定優化器並設定自訂耐受度 (patience=5)
+  ./src/logreg_train.py data/dataset_train.csv --opt adam -e --patience 5
+
+  # 生成視覺化基準圖表（於 plots/ 同時輸出 learning_curves.png 與 visualization.png）
+  ./src/logreg_train.py data/dataset_train.csv --visual
+
+  # 結合早停機制與視覺化輸出：
+  ./src/logreg_train.py data/dataset_train.csv -e -v
+  ```
+
+#### 4. 全維度消融與基準儀表板視覺化 (`src/utils/learning_curves.py` — `--visual` / `-v`)
+- **設計理念與四大分析維度**：
+  若要全方位一圖看懂優化器動力學、$L_2$ 正則化與 Early Stopping 的實質差異，系統提供 `visualize_benchmark()`，並透過 `--visual` 一鍵於 `plots/` 生成 $2 \times 2$ 高解析度儀表板 `plots/visualization.png`：
+  1. **優化器收斂動力學**（Loss vs. Epochs）：對比 BGD、SGD、Mini-batch、Momentum 與 Adam 在 100 輪內的收斂速率與軌跡平滑度。
+  2. **$L_2$ 權重衰減效應**（$\lambda$ vs. $\|w\|_2$ & 驗證準確率）：掃描 $\lambda \in [0, 200]$，展示雙軸曲線（權重歐氏範數嚴格單調遞減，驗證準確率在適當正則化區間維持 $\ge 98\%$）。
+  3. **$L_2$ 特徵權重壓縮長條圖**（$\lambda=0$ vs. $\lambda=50$）：並排對比 13 門課程特徵權重，直觀證明無區分度的雜訊特徵（如 `Care of Magical Creatures`）被強力壓縮趨近於 0。
+  4. **Early Stopping 運算節省效益**（Fixed 100 輪 vs. 早停輪數）：量化展示早停機制省下的梯度更新次數與計算百分比（如 SGD 節省逾 60% 算力且維持相同高準確率）。
+
+> #### 💡 口試答辯必考細節（Peer Defense Q&A）
+> 1. **為什麼在消融儀表板第四張圖中，SGD 提早觸發早停，而 Adam、Momentum、BGD 卻跑滿 100 輪？難道 SGD 比 Adam 優秀？**
+>    - **「Epoch（訓練輪次）」$\neq$「Gradient Step（參數更新次數）」**：
+>      - **1 個 Epoch 的定義**：模型完整看過整份訓練集（$m = 1280$ 筆樣本）一次。
+>      - **Full-Batch 優化器（BGD / Momentum / Adam）**：每看完整批 $1280$ 筆資料，計算全量無偏梯度，**只更新 1 次參數**。跑滿 100 輪實質上總共只更新了 **$100$ 次參數**！
+>      - **SGD（隨機梯度下降）**：每看 1 筆樣本就立即更新 1 次參數，**1 個 Epoch 內就更新了 $1280$ 次參數**！當 SGD 跑到第 39 輪觸發早停時，背後已經累積了 $39 \times 1280 = \mathbf{49,920\ 次}$ 參數更新！
+>      - 因此在 Epoch 尺度下，SGD 在前 5 輪就更新了 6,400 次，迅速抵達谷底，但隨後因單樣本高方差雜訊在谷底「隨機漫步」，連續 5 輪改善幅度低於閾值（$\Delta J < 10^{-4}$），因而滿足早停條件提前結束。
+>    - **為什麼 Adam 跑滿 100 輪？「沒停」代表它比較差嗎？**
+>      - **恰恰相反，這證明 Adam 仍在穩健而有效地持續進步！**
+>      - 早停機制的物理意義是「模型學不動了、邊際效益遞減（$\Delta J \le 10^{-4}$）」。實測 Adam 在第 91 到 100 輪每輪的損失改善量：
+>        - `Epoch 91 | Delta = 0.000202 (> 1e-4) -> 持續有效收斂`
+>        - `Epoch 95 | Delta = 0.000195 (> 1e-4) -> 持續有效收斂`
+>        - `Epoch 100| Delta = 0.000186 (> 1e-4) -> 持續有效收斂`
+>      - 因為 Adam 每一步都是全量樣本的精確無偏梯度，且結合自適應學習率與動量校正，每一輪都在以大於閾值的速度朝全域最優解精準下降。既然每一輪都還在持續進步，早停計數器自然不斷重置，因此它有充分的理由跑滿 100 輪。
+>      - 若將輪次上限放寬至 300 輪，Adam 會在第 **145～274 輪**之間，當 Loss 精準下降到極小值（約 $0.039$）後才優雅早停。
+>    - **資料集規模（$N=1600$）與凸優化特性（Convexity）的交互作用**：
+>      - 邏輯回歸是嚴格凸問題，不存在局部極小值。在小資料集上，Full-Batch Adam 像精密手術刀一樣步步逼近極限理論最優點；而在工業界大數據（百萬樣本或深度神經網路）中，記憶體無法容納全量樣本，Adam 通常與 Mini-batch 結合（如 Batch Size = 32），此時 Adam 也會在數個 Epoch 內完成數百次更新並迅速早停。
 
 ---
 
 ### Bonus 5: 自動化測試與口試答辯驗證套件 (`tester/tester.py`)
 
-為了驗證**軟體工程完整性（Code Integrity）**與**底層數學正確性（Mathematical Meaning）**，`tester/tester.py` 設計了 5 個獨立的驗證模組（支援 `./tester/tester.py --only [describe|stats|ast|l2|e2e]`）：
+為了驗證**軟體工程完整性（Code Integrity）**與**底層數學正確性（Mathematical Meaning）**，`tester/tester.py` 設計了 5 大核心模組與 `--visual` 儀表板測試（支援 `./tester/tester.py --only [describe|stats|ast|l2|e2e|visual]` 或 `./tester/tester.py --visual`，驗證 `plots/` 兩大圖表）：
 
 #### TEST 1 (`--only describe`)：Mandatory 8 大描述性統計指標 vs. 官方 `pandas.DataFrame.describe()`
 - **如何確認程式碼完整性 (Code Integrity)**：
@@ -360,14 +448,14 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 - **背後的數學意義 (Mathematical Meaning)**：
   - **貝索校正（Bessel's Correction, 自由度 $N - 1$）**：驗證樣本標準差採用無偏估計量（Unbiased Estimator）$s = \sqrt{\frac{1}{n-1}\sum_{i=1}^n (x_i - \bar{x})^2}$，而非母體標準差的分母 $n$。當樣本取自未知母體時，樣本均值 $\bar{x}$ 已經消耗了 1 個自由度，除以 $n - 1$ 才能使樣本變異數的期望值 $\mathbb{E}[s^2] = \sigma^2$。
   - **Hyndman–Fan Type 7 分位數線性插值法**：驗證對於排序後的有效樣本 $x_{(0)} \le \dots \le x_{(n-1)}$ 與分位點 $p \in \{0.25, 0.50, 0.75\}$，虛擬索引 $h = p(n - 1)$ 拆解為整數部 $i = \lfloor h \rfloor$ 與小數部 $f = h - i$，並滿足線性插值公式 $Q(p) = x_{(i)} + f \cdot (x_{(i+1)} - x_{(i)})$。
-  - **IEEE-754 雙精度浮點數機器псилон（Machine Epsilon, $\epsilon_{\text{mach}} = 2^{-53} \approx 1.11 \times 10^{-16}$）**：在 64 位元浮點數運算中，累加順序的差異會在尾數（Mantissa）最後一位產生 $O(\epsilon_{\text{mach}})$ 的捨入差異。當特徵數量級極大（如 `Arithmancy` 的平均數 $\bar{x} \approx 4.96 \times 10^4$）時，1 ULP（Unit in the Last Place，最小有效位單位）會隨數量級放大為 $\bar{x} \cdot \epsilon_{\text{mach}} \approx 10^{-11}$。透過同時檢驗**相對誤差**（$\frac{|x_{\text{ours}} - x_{\text{ref}}|}{|x_{\text{ref}}|} \le 1.88 \times 10^{-15}$），可嚴格證明手寫統計迴圈與 Pandas 底層 C 語言實作在硬體浮點數精度極限下完全等價。
+  - **IEEE-754 雙精度浮點數機器псилон（Machine Epsilon, $\epsilon_{\text{mach}} = 2^{-53} \approx 1.11 \times 10^{-16}$）**：在 64 位元浮點數運算中，累加順序的差異會在尾數（Mantissa）最後一位產生 $O(\epsilon_{\text{mach}})$ 的捨入差異。當特徵數量級極大（如 `Arithmancy` 的平均數 $\bar{x} \approx 4.96 \times 10^4$）時，1 ULP（Unit in the Last Place，最小有效位單位）會隨數量級放大為 $\bar{x} \cdot \epsilon_{\text{mach}} \approx 10^{-11}$。透過同時檢驗**相對誤差**（$\frac{|x_{\text{ours}} - x_{\text{ref}}|}{|x_{\text{ref}}|} \le 1.88 \times 10^{-15}$），可嚴格證明手寫統計迴圈與 Pandas 底層 C 語言在硬體浮點數精度極限下完全等價。
 
 #### TEST 2 (`--only stats`)：Bonus 1 進階統計指標、皮爾森相關係數與退化邊界測試
 - **如何確認程式碼完整性 (Code Integrity)**：
-  1. 將 `src/utils/stats.py` 實作的 7 項進階指標（`var`, `range`, `iqr`, `skew`, `kurt`, `missing%`, `unique`）及 `pearson_corr()` 與 Pandas/NumPy 官方公式逐欄比對。
+  1. 將 `src/utils/stats.py` 製作的 7 項進階指標（`var`, `range`, `iqr`, `skew`, `kurt`, `missing%`, `unique`）及 `pearson_corr()` 與 Pandas/NumPy 官方公式逐欄比對。
   2. 構造極端退化資料集（Edge Cases）：**全空值欄（All-`NaN`, $n = 0$）**、**單一元素欄（$n = 1$）**、與**常數零變異欄（$[42, 42, 42, 42], s = 0$）**，逐一測試所有統計函數，確保無任何 `ZeroDivisionError`、`IndexError` 或崩潰。
 - **背後的數學意義 (Mathematical Meaning)**：
-  - **樣本變異數（$s^2$）的平方尺度效應**：變異數將測量單位平方，使得 `Arithmancy` 的變異數高達 $s^2 \approx 2.78 \times 10^8$。在此數量級下，雙精度浮點數的 $1\text{ ULP} = 2.78 \times 10^8 \times 2^{-53} \approx 5.96 \times 10^{-8}$。因此絕對誤差 `5.96e-08` 換算為**相對誤差僅為 $2.15 \times 10^{-16}$**，代表手寫雙迴圈與向量化實作在 53 bits 尾數上僅差最後 1 個 bit。
+  - **樣本變異數（$s^2$）的平方尺度效應**：變異數將測量單位平方，使得 `Arithmancy` 的變異數高達 $s^2 \approx 2.78 \times 10^8$。在此數量級下，雙精度浮點數的 $1\text{ ULP} = 2.78 \times 10^8 \times 2^{-53} \approx 5.96 \times 10^{-8}$。因此絕對誤差 `5.96e-08` 換算為**相對誤差僅為 $2.15 \times 10^{-16}$**，代表手寫雙迴圈與向量化在 53 bits 尾數上僅差最後 1 個 bit。
   - **高階標準化中心動差（Central Moments）與自由度門檻**：
     - **二階動差（變異數 $s^2$ / 標準差 $s$）**：分母含 $n - 1$，故樣本數必須滿足 $n \ge 2$。
     - **三階動差（Fisher–Pearson 修正樣本偏度 $g_1$）**：
@@ -418,7 +506,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 <br/>
 
 <p align="right">
-  <a href="#dslr-實作詳解與數學推導指南">
+  <a href="#dslr-製作細節與數學推導">
     <img src="https://img.shields.io/badge/-TOP-sienna?style=for-the-badge" />
   </a>
 </p>
@@ -435,7 +523,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
   - [2.1 Sigmoid Function](#21-sigmoid-function)
   - [2.2 Cost Function](#22-cost-function)
   - [2.3 Gradient Descent: Batch Gradient Descent (BGD — `--opt bgd [default]`)](#23-gradient-descent-batch-gradient-descent-bgd----opt-bgd-default)
-  - [2.4 Feature Standardization (Z-score)](#24-feature-standardization-z-score)
+  - [2.4 Feature Standardization](#24-feature-standardization)
 - [3. Bonus Part](#3-bonus-part)
   - [Bonus 1: Extended Metrics in `src/utils/stats.py`](#bonus-1-extended-metrics-in-srcutilsstatspy)
   - [Bonus 2: Other Optimization Algorithms in `src/utils/optimizers.py` — Math & Advantages](#bonus-2-other-optimization-algorithms-in-srcutilsoptimizerspy--math--advantages)
@@ -485,7 +573,7 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 - **Pipeline**:
   1. **Data Cleaning**: Drop non-numerical metadata (`First Name`, `Last Name`, `Birthday`, `Best Hand`) and excluded courses.
   2. **Missing Value Imputation**: Compute the **median** ($50\%$ quantile) of each selected feature on the training set and fill missing (`NaN`) values.
-  3. **Feature Standardization**: Compute each feature's $\mu$ and $\sigma$, transforming values into standard normal Z-scores.
+  3. **Feature Standardization**: Compute each feature's $\mu$ and $\sigma$, transforming values into a standard normal distribution.
   4. **One-vs-All Label Encoding**: Convert `Hogwarts House` into 4 binary target vectors ($y \in \{0, 1\}$).
   5. **Gradient Descent Optimization**: Prepend a bias column of ones ($x_0 = 1$) and iteratively update the weight matrix $\theta$ using Gradient Descent.
   6. **Save Parameters**: Export the trained weights, biases, and scaling parameters ($\text{median}, \mu, \sigma$) to the weight file.
@@ -565,12 +653,12 @@ $$J(\theta) = -\frac{1}{m} \sum_{i=1}^{m} \Big[ y^{(i)} \log(h_\theta(x^{(i)})) 
   - Noise-free gradient estimation; every step moves deterministically toward the global minimum, yielding the smoothest and most stable convergence trajectory.
   - Requires scanning the entire dataset for each weight update, which carries a higher per-step computational cost on very large datasets.
 
-### 2.4 Feature Standardization (Z-score)
+### 2.4 Feature Standardization
 Because Hogwarts courses have vastly different score scales (e.g., `Arithmancy` in the tens of thousands vs. `Herbology` between $-10$ and $10$), unscaled features create elongated elliptical loss contours that cause gradient descent to oscillate or diverge.
 Standardization formula:
 $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 where $\mu$ is the feature mean and $\sigma$ is the sample standard deviation.
-> **Note**: The test set must be standardized using the **training set's** $\mu$ and $\sigma$ to prevent Data Leakage.
+> **Note**: Splitting the data into **80%** training data and **20%** validation data allows us to evaluate the model’s ability to generalize to unseen data. To prevent data leakage, standardization should use only the mean $\mu$ and standard deviation $\sigma$ calculated from the training set, and these same parameters should then be applied to both the training and validation sets. Data leakage refers to a situation in which a model gains access to information that should not be available during training or model selection, resulting in an evaluation that does not accurately reflect its performance on new, unseen data.
 
 ---
 
@@ -600,7 +688,7 @@ We have implemented 9 bonus statistical and correlation functions in `src/utils/
 - **Definition**:
   $$s = \sqrt{s^2} = \sqrt{\frac{1}{n - 1} \sum_{i=1}^{n} (x_i - \bar{x})^2}$$
 - **Statistical Meaning**:
-  Restores the dispersion measure to the original unit of measurement of the feature and serves as the scaling denominator for Z-score standardization $z = \frac{x - \bar{x}}{s}$. Implemented in `stats.py` as a 1-line vectorized Series operation: `return dfvar(dataframe) ** 0.5`.
+  Restores the dispersion measure to the original unit of measurement of the feature and serves as the scaling denominator for standardization $z = \frac{x - \bar{x}}{s}$. Implemented in `stats.py` as a 1-line vectorized Series operation: `return dfvar(dataframe) ** 0.5`.
 
 #### 3. Range (`dfrange`)
 - **Definition**:
@@ -684,7 +772,7 @@ In addition to the default Batch Gradient Descent (`--opt bgd`) covered in Secti
 
 #### 3. Gradient Descent with Momentum (`--opt momentum`)
 - **Definition**:
-  Introduces a physical **velocity vector $v_t$** that computes an exponentially weighted moving average of past gradients (momentum decay factor $\beta = 0.9$):
+  Introduces a physical **velocity vector $v_t$** that computes an exponentially weighted moving average of **past gradients** (momentum decay factor $\beta = 0.9$):
   $$v_t = \beta v_{t-1} + (1 - \beta) g_t$$
   $$\theta_{t+1} = \theta_t - \alpha v_t$$
 - **Core Mechanism & Advantages**:
@@ -725,6 +813,13 @@ In addition to the default Batch Gradient Descent (`--opt bgd`) covered in Secti
 
 ### Bonus 3: $L_2$ Regularization (Ridge)
 
+#### 0. What Is $L_2$?
+- **$L$ (Lebesgue)**: Originates from the **$L^p$ Lebesgue space** in functional analysis, named after French mathematician Henri Lebesgue. In mathematics, $L$ represents function spaces defined via Lebesgue integration and norm metrics.
+- **$2$ (Order $p=2$ / Sum of Squares)**: Denotes that vector components are squared, summed, and then square-rooted ($p=2$).
+- **$L_2$ Norm (Euclidean Norm)**: In the context of finite-dimensional real parameter vectors $w \in \mathbb{R}^n$ in machine learning, the $L_2$ norm is precisely the standard **Euclidean length**:
+  $$\|w\|_2 = \sqrt{\sum_{j=1}^n w_j^2} = \sqrt{w_1^2 + w_2^2 + \dots + w_n^2}$$
+  In $L_2$ regularization (Ridge regression), we penalize the squared $L_2$ norm $\|w\|_2^2 = \sum_{j=1}^n w_j^2$, which is strictly smooth, convex, everywhere differentiable, and yields an elegant linear gradient penalty.
+
 #### 1. Why Do We Need $L_2$ Regularization?
 To penalize large feature weights to prevent overfitting. The predicted probability is $h_{w,b}(x) = \sigma(w^T x + b) = \frac{1}{1 + e^{-(w^T x + b)}}$. Without regularization, three issues arise:
 - **Weight Explosion**: To drive log loss toward $0$ on the training set, the model tries to make $100\%$ confident predictions ($h_{w,b}(x) \to 1$ or $0$). Because Sigmoid only reaches $1$ or $0$ as its input approaches $\pm\infty$, gradient descent pushes weights $w_j$ to grow indefinitely.
@@ -745,8 +840,18 @@ To penalize large feature weights to prevent overfitting. The predicted probabil
 > #### 💡 Key Peer Defense Questions (Q&A)
 > 1. **Why is the Bias term $\theta_0$ (`b` in code) excluded from regularization?**
 >    - The bias $b$ is not multiplied by any input feature $x_j$; it only shifts the decision boundary's baseline threshold in space and does not amplify input noise (variance). Penalizing $b$ toward $0$ would artificially force the decision hyperplane toward the origin, introducing underfitting bias. Thus, in `optimizers.py`, `(l2_lambda / m_samples) * w` is added only to `grads` and never to `grad_bias`.
-> 2. **Why is Z-score feature standardization mandatory before applying $L_2$ regularization?**
->    - $L_2$ applies a single uniform penalty $\lambda$ across $\sum w_j^2$. Without standardization, large-scale features (`Arithmancy` in the tens of thousands) naturally have tiny weights $w_j$, whereas small-scale features (`Herbology` in $[-10, 10]$) require larger weights $w_j$—causing $L_2$ to unfairly penalize small-scale features. Z-score standardization puts all features on the same scale so $\lambda$ penalizes them fairly.
+> 2. **Why is feature standardization mandatory before applying $L_2$ regularization?**
+>    - $L_2$ applies a single uniform penalty $\lambda$ across $\sum w_j^2$. Without standardization, large-scale features (`Arithmancy` in the tens of thousands) naturally have tiny weights $w_j$, whereas small-scale features (`Herbology` in $[-10, 10]$) require larger weights $w_j$—causing $L_2$ to unfairly penalize small-scale features. Standardization puts all features on the same scale so $\lambda$ penalizes them fairly.
+> 3. **Why does $\lambda$ show virtually no correlation with Validation Accuracy in the benchmark ablation study (`--visual`)?**
+>    - **Fundamental Dichotomy: Step Function (Accuracy) vs. Smooth Probability Calibration (Log Loss)**: Classification accuracy is a 0-1 step loss that only changes when an observation crosses the decision boundary. $L_2$ regularization penalizes large weights to calibrate probabilities and guard against test variance, but does not alter hard labels unless the penalty is overwhelmingly massive.
+>    - **High Signal-to-Noise Ratio & Geometric Separation**: The Hogwarts dataset contains highly separable discriminant features (`Herbology`, `Astronomy`, `Ancient Runes`, `Flying`). Because multi-class predictions rely on $\arg\max_k (w_k^T x + b_k)$, $L_2$ regularization scales down the norm $\|w\|_2$ without altering the relative angular orientation of the hyperplanes. The probabilities soften from extreme confidence ($0.999 \to 0.85$), but the relative rank ordering remains identical.
+>    - **Empirical Underfitting Limits**:
+>      - $\lambda = 0 \sim 2000$: Validation accuracy holds firmly at **$97.19\%$** (while $\|w\|_2$ contracts from $2.83$ to $0.62$).
+>      - $\lambda = 5000$: $\|w\|_2 = 0.30$, accuracy begins to drop to **$91.88\%$**.
+>      - $\lambda = 10000$: $\|w\|_2 = 0.16$, severe underfitting plunges accuracy to **$59.06\%$**.
+> 4. **Since accuracy remains virtually unchanged, how does the ablation study prove that $L_2$ regularization is actually effective?**
+>    - **Noise Feature Compression to ~0**: In the EDA score histograms, non-discriminative courses where all four houses share identical overlapping distributions (such as `Care of Magical Creatures` and `Arithmancy`) have their learned weights compressed under $\lambda=50$ down to a negligible $0.018$. In contrast, truly predictive courses (`Ancient Runes`, `Herbology`, `Astronomy`) resist the shrinkage penalty and retain dominant weights. This confirms that $L_2$ regularization performs continuous feature shrinkage and effective noise suppression.
+>    - **Well-Calibrated Probabilities**: Without regularization, unconstrained optimization can yield overly extreme, overconfident probabilities ($99.99\%$). Under $L_2$ regularization, predicted probabilities soften to well-calibrated confidence intervals (e.g. $85\%$), dramatically boosting model robustness against real-world test outliers and measurement variance.
 
 #### 3. CLI Usage Examples
 All 5 optimizers (`batch_gd`, `stochastic_gd`, `mini_gd`, `momentum_gd`, `adam_gd`) and `optimize()` accept `l2_lambda` (default `0.0`):
@@ -760,18 +865,86 @@ All 5 optimizers (`batch_gd`, `stochastic_gd`, `mini_gd`, `momentum_gd`, `adam_g
 
 ---
 
-### Bonus 4: Learning Curve Visualization & Early Stopping
+### Bonus 4: Learning Curve Visualization & Early Stopping (`src/utils/early_stopping.py` & `src/utils/learning_curves.py`)
 
-- **Design**:
-  - Tracks training/validation log loss across epochs.
-  - Supports `--plot` to visualize **Cost vs. Epochs** comparing BGD, Mini-batch GD, SGD, Momentum, and Adam convergence dynamics.
-  - Supports `--early-stopping` to terminate training automatically once loss improvement plateaus for $P$ consecutive epochs.
+#### 1. Learning Curve Visualization (`src/utils/learning_curves.py` — `--visual` / `-v`)
+- **Architectural Design**:
+  When passing `--visual` (or `-v`) to `src/logreg_train.py`, the system automatically creates a `plots/` directory under the project root and benchmarks all 5 gradient descent algorithms (`BGD`, `SGD`, `Mini-batch`, `Momentum`, `Adam`) on the identical standardized feature set starting from uniform initial parameters $\theta = 0$.
+  It renders a comprehensive $2 \times 3$ visualization grid saved to `plots/learning_curves.png`:
+  - **Subplots (0,0) to (1,0) [4 House Panels]**: Loss vs. Epochs trajectories for Gryffindor, Hufflepuff, Ravenclaw, and Slytherin. Star markers ($\star$) indicate the exact epoch where early stopping was triggered.
+  - **Subplot (1,1) [Overall Mean Loss Panel]**: Average log loss across all four houses, clearly illustrating convergence speed and asymptotic loss floors across optimizers.
+  - **Subplot (1,2) [Performance Summary Panel]**: Horizontal bar chart summarizing final log loss and total epochs executed per optimizer.
+
+> **Interpretation of Star Markers ($\star$) in Learning Curves**:
+> When `--early-stopping` (`-e`) is enabled, if an individual One-vs-All house classifier satisfies the early termination criterion (no loss improvement $> 10^{-4}$ for `--patience` consecutive epochs), training ceases immediately, and a prominent star marker ($\star$) is plotted at the final epoch and loss coordinate. This indicates:
+> 1. **Training was frozen** at that exact epoch, preventing idle stagnation on loss plateaus;
+> 2. **Parameters were automatically rolled back** to the historical best weights $\theta^*$;
+> 3. If a curve **lacks a star marker**, that optimizer made consistent progress ($> 10^{-4}$ loss delta per epoch) throughout the run, smoothly completing the full 100-epoch horizon.
+
+- **Optimizer Convergence Characteristics (Peer-Defense Focus)**:
+  1. **Batch GD (BGD)**: Monotonically decreasing, smooth loss trajectory driven by deterministic full-dataset gradients; slower to converge per unit of computational time.
+  2. **Stochastic GD (SGD)**: Characterized by stochastic loss fluctuations but aggressive descent rate, breaking out of shallow plateaus in fewer total epochs.
+  3. **Mini-batch GD (B=32)**: Optimal trade-off between vectorized parallel execution and stochastic gradient variance.
+  4. **Momentum GD**: Accelerated convergence through directional velocity accumulation, cutting through ravines and flat loss plateaus.
+  5. **Adam**: Combining first and second moment adaptations, achieving near-instant descent and steady asymptotic stabilization.
+
+#### 2. Early Stopping Mechanism (`src/utils/early_stopping.py` — `--early-stopping` / `-e`, `--patience`)
+- **Mathematical Formulation**:
+  Early stopping continuously monitors the improvement in log loss relative to the best recorded loss $J^*_{\text{best}}$:
+  $$\Delta J_t = J^*_{\text{best}} - J_t$$
+  - If $\Delta J_t > \epsilon_{\text{min\_delta}}$ (default $10^{-4}$):
+    $$J^*_{\text{best}} := J_t, \quad \theta^* := \theta_t, \quad \text{patience\_counter} := 0$$
+  - If $\Delta J_t \le \epsilon_{\text{min\_delta}}$:
+    $$\text{patience\_counter} := \text{patience\_counter} + 1$$
+  - When $\text{patience\_counter} \ge P$ (`--patience`, default 10):
+    Optimization is halted immediately, and the parameter vector is reverted to the historical best $\theta^*$ to safeguard against noisy oscillations or overfitting on loss plateaus.
+
+#### 3. CLI Usage Examples
+```bash
+# Enable early stopping with default patience (10 epochs)
+./src/logreg_train.py data/dataset_train.csv -e
+
+# Combine an advanced optimizer with custom patience
+./src/logreg_train.py data/dataset_train.csv --opt adam --early-stopping --patience 5
+
+# Generate both visual benchmarks in plots/ (learning_curves.png & visualization.png)
+./src/logreg_train.py data/dataset_train.csv --visual
+
+# Combine early stopping with visual benchmarks
+./src/logreg_train.py data/dataset_train.csv -e -v
+```
+
+#### 4. Comprehensive Benchmark & Ablation Dashboard (`src/utils/learning_curves.py` — `--visual` / `-v`)
+- **Architectural Scope & 4 Visual Perspectives**:
+  To synthesize the multidimensional interplay between Optimizers, $L_2$ regularization, and Early Stopping into a single publication-ready figure, `visualize_benchmark()` generates `plots/visualization.png` ($2 \times 2$ grid):
+  1. **Optimizer Convergence Dynamics** (Loss vs. Epochs): Compares descent speeds and stability curves across BGD, SGD, Mini-batch, Momentum, and Adam.
+  2. **$L_2$ Regularization Weight Decay vs. Validation Accuracy**: Twin-axis curve mapping $\lambda \in [0, 200]$ to Euclidean weight norm $\|w\|_2$ decay and multi-class accuracy.
+  3. **$L_2$ Feature Weight Compression** ($\lambda=0$ vs. $\lambda=50$): Grouped horizontal bar chart showing how weights across all 13 subjects compress, shrinking non-informative noise features (such as `Care of Magical Creatures`) to near zero.
+  4. **Early Stopping Efficiency & Compute Savings**: Grouped bar chart comparing fixed 100 epochs against early stopped epochs, reporting the exact percentage of compute time saved.
+
+> #### 💡 Key Peer Defense Questions (Q&A)
+> 1. **Why does SGD trigger Early Stopping early while Adam, Momentum, and BGD run all 100 epochs? Does that mean SGD is superior?**
+>    - **"Epoch" $\neq$ "Gradient Update Step"**:
+>      - **Epoch**: One complete pass through all $m = 1280$ training samples.
+>      - **Full-Batch Optimizers (BGD, Momentum, Adam)**: Execute exactly **1 gradient update per epoch** (100 total parameter updates across 100 epochs).
+>      - **SGD**: Updates parameters after every single sample (**1,280 updates per epoch**). By epoch 39, SGD has executed $39 \times 1280 = \mathbf{49,920\ parameter\ updates}$!
+>      - In terms of epochs, SGD rapidly dives into the loss basin within the first 5 epochs (6,400 updates), but subsequently wanders randomly around the minimum due to high sample variance. When consecutive epoch improvements drop below $\Delta J < 10^{-4}$ for 5 epochs, early stopping triggers.
+>    - **Why does Adam run all 100 epochs? Does continuing mean it is slower?**
+>      - **Quite the contrary: Adam is actively and steadily making meaningful improvements!**
+>      - Early stopping halts only when marginal gain plateaus ($\Delta J \le 10^{-4}$). Empirical logging reveals Adam's progress in late epochs:
+>        - `Epoch 91 | Delta = 0.000202 (> 1e-4) -> Continuous convergence`
+>        - `Epoch 95 | Delta = 0.000195 (> 1e-4) -> Continuous convergence`
+>        - `Epoch 100| Delta = 0.000186 (> 1e-4) -> Continuous convergence`
+>      - Because each update leverages clean, unbiased full-dataset gradients with adaptive second moments, Adam continues descending with step deltas $> 10^{-4}$, resetting the patience counter each time.
+>      - If given a 300-epoch horizon, Adam halts gracefully between epochs **145 and 274** once loss reaches its true global minimum ($\approx 0.039$).
+>    - **Dataset Scale ($N=1600$) and Convexity Dynamics**:
+>      - Logistic regression is strictly convex (no local minima). On small-to-medium datasets, Full-Batch Adam acts like a precision scalpel. In large-scale deep learning where full-batching is memory-prohibitive, Adam is coupled with mini-batches, where it also completes hundreds of steps and triggers early stopping within a few epochs.
 
 ---
 
 ### Bonus 5: Automated Test & Defense Verification Suite (`tester/tester.py`)
 
-To rigorously validate both **software engineering integrity** and **mathematical correctness**, `tester/tester.py` is structured into 5 independent verification modules (`./tester/tester.py --only [describe|stats|ast|l2|e2e]`):
+To rigorously validate both **software engineering integrity** and **mathematical correctness**, `tester/tester.py` is structured into 5 core test groups plus `--visual` dashboard generation (`./tester/tester.py --only [describe|stats|ast|l2|e2e|visual]` or `./tester/tester.py --visual` verifying both charts in `plots/`):
 
 #### TEST 1 (`--only describe`): Mandatory Descriptive Statistics vs. Official `pandas.DataFrame.describe()`
 - **How It Confirms Code Integrity**:
@@ -822,7 +995,7 @@ To rigorously validate both **software engineering integrity** and **mathematica
 - **How It Confirms Code Integrity**:
   Safely backs up and restores existing workspace files (`modele.csv`, `model_weights.csv`, `houses.csv`), executes `src/logreg_train.py` and `src/logreg_predict.py` via subprocess across all 5 optimizers (`bgd`, `sgd`, `mini`, `momentum`, `adam`) plus `--lambda 0.01`, checks that every configuration exceeds the **98.0% accuracy threshold** (reaching **98.94%** on `dataset_train.csv`), prints the multi-class Classification Report and Confusion Matrix, and validates `houses.csv` generated from `dataset_test.csv` (exact `Index,Hogwarts House` header, $400$ rows, $0$ `NaN`s, all predictions valid house names).
 - **Mathematical Meaning**:
-  - **Global Convexity of Log Loss Across Optimizers**: The Hessian matrix of binary logistic loss is $H = \frac{1}{m}X^T D X$ where $D = \text{diag}(h_\theta(x^{(i)})(1 - h_\theta(x^{(i)}))) \succ 0$. Because $v^T H v = \frac{1}{m}\|D^{1/2}Xv\|_2^2 \ge 0$ for all $v$, the loss surface is **convex** (and strictly convex under $L_2$ regularization). Thus, whether we follow full-batch deterministic gradients (`bgd`), noisy single-sample gradients (`sgd`), mini-batch estimates (`mini`), exponentially weighted velocity (`momentum`), or adaptive first/second moment preconditioning (`adam`), all trajectories converge to the same global optimum basin ($\approx 98.94\%$ accuracy).
+  - **Global Convexity of Log Loss Across Optimizers**: The Hessian matrix of log loss is $H = \frac{1}{m}X^T D X$ where $D = \text{diag}(h_\theta(x^{(i)})(1 - h_\theta(x^{(i)}))) \succ 0$. Because $v^T H v = \frac{1}{m}\|D^{1/2}Xv\|_2^2 \ge 0$ for all $v$, the loss surface is **convex** (and strictly convex under $L_2$ regularization). Thus, whether we follow full-batch deterministic gradients (`bgd`), noisy single-sample gradients (`sgd`), mini-batch estimates (`mini`), exponentially weighted velocity (`momentum`), or adaptive first/second moment preconditioning (`adam`), all trajectories converge to the same global optimum basin ($\approx 98.94\%$ accuracy).
   - **Multi-Class Evaluation Metrics (Precision, Recall, $F_1$ & Confusion Matrix)**:
     Given the $4 \times 4$ Confusion Matrix $C$ where $C_{i,j}$ is the number of students from true house $i$ classified into house $j$ via $\hat{y} = \arg\max_{k \in \{1..4\}} \sigma(x^T w^{(k)} + b^{(k)})$:
     $$\text{Accuracy} = \frac{\sum_{k=1}^4 C_{k,k}}{\sum_{i=1}^4 \sum_{j=1}^4 C_{i,j}}, \quad \text{Precision}_k = \frac{C_{k,k}}{\sum_{i=1}^4 C_{i,k}}, \quad \text{Recall}_k = \frac{C_{k,k}}{\sum_{j=1}^4 C_{k,j}}, \quad F_{1,k} = \frac{2 \cdot \text{Precision}_k \cdot \text{Recall}_k}{\text{Precision}_k + \text{Recall}_k}$$
