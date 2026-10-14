@@ -12,12 +12,6 @@ import math
 
 def model_weight_applicator(mats_weight: pd.Series, std_values: pd.DataFrame, bias: float)->pd.Series:
 
-	# result= std_values.copy()
-	# for i in result.index:
-	# 	for col in mats_weight.index:
-	# 		result.loc[i, col] *= mats_weight.loc[col]
-
-	# return result.loc[:, mats_weight.index].sum(axis=1) + bias
 	notes = std_values.loc[:, mats_weight.index]
 
 	# Multiplie chaque colonne par son poids,
@@ -51,15 +45,10 @@ def holdOut(dataset: pd.DataFrame, reality: pd.DataFrame)-> pd.DataFrame:
 	train = []
 	for m in reality.columns:
 		group = result[result[m] == 1]
-		# print(len(group),"\n")
 		selection=group.sample(frac=0.8,random_state=50)
-		# selection=group.sample(frac=0.8)
 		train.append(selection)
 
 	finish = pd.concat(train)
-	# verification = result.drop(index=finish.index)
-	# print("\n=====verif====\n",verification,len(verification),"\n=========\n")
-	# print("\n====result=====\n",finish,"\n=========\n")
 	return finish
 
 
@@ -103,73 +92,66 @@ def main():
 	nom_fichier = args.dataset
 	dataset = pd.read_csv(nom_fichier, sep=",")
 
-	maison = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
-	matieres = dataset.select_dtypes(include="number").drop(columns="Index").columns
-	weights = pd.DataFrame(0.0, index=matieres,columns=maison)
-	reality = pd.DataFrame({m: (dataset["Hogwarts House"] == m).astype(int) for m in maison})
+	try:
+		maison = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
+		matieres = dataset.select_dtypes(include="number").drop(columns="Index").columns
+		weights = pd.DataFrame(0.0, index=matieres,columns=maison)
+		reality = pd.DataFrame({m: (dataset["Hogwarts House"] == m).astype(int) for m in maison})
 
-	learning_rate = 0.07
-	bias = pd.Series(0.0, index=maison)
+		learning_rate = 0.05
 
-	hold_df = holdOut(dataset.select_dtypes(include="number").drop(columns="Index"),reality).sort_index()
-	verification_df = reality.join(dataset.select_dtypes(include="number").drop(columns="Index")).drop(index=hold_df.index)
+		bias = pd.Series(0.0, index=maison)
 
-	described_dataset = dc.describe(hold_df)
-	# print(described_dataset)
+		hold_df = holdOut(dataset.select_dtypes(include="number").drop(columns="Index"),reality).sort_index()
+		verification_df = reality.join(dataset.select_dtypes(include="number").drop(columns="Index")).drop(index=hold_df.index)
 
-	# standardization of 80% to training
-	for mats in matieres:
-		hold_df[mats] = ((hold_df[mats] - described_dataset.loc["mean",mats])/described_dataset.loc["std", mats]).fillna(0)
+		described_dataset = dc.describe(hold_df)
+		# print(described_dataset)
 
-	# standardization of the 20% verifiers
-	for mats in matieres:
-		verification_df[mats] = ((verification_df[mats] - described_dataset.loc["mean", mats])/ described_dataset.loc["std", mats]).fillna(0)
+		# standardization of 80% to training
+		for mats in matieres:
+			hold_df[mats] = ((hold_df[mats] - described_dataset.loc["mean",mats])/described_dataset.loc["std", mats]).fillna(0)
 
-	# print(hold_df)
+		# standardization of the 20% verifiers
+		for mats in matieres:
+			verification_df[mats] = ((verification_df[mats] - described_dataset.loc["mean", mats])/ described_dataset.loc["std", mats]).fillna(0)
 
-	weights, bias = opt_utils.optimize(
-		hold_df,
-		weights,
-		bias,
-		opt=args.opt,
-		learning_rate=learning_rate,
-		l2_lambda=args.l2_lambda,
-	)
-
-	# print(weights)
+		weights, bias = opt_utils.optimize(
+			hold_df,
+			weights,
+			bias,
+			opt=args.opt,
+			learning_rate=learning_rate,
+			l2_lambda=args.l2_lambda,
+		)
 
 
-	for m in maison:
-		# Prédictions avec les poids et le biais appris
-		z = model_weight_applicator(weights[m], verification_df, bias.loc[m])
-		p = sigmoid(z)
+		for m in maison:
+			# Prédictions avec les poids et le biais appris
+			z = model_weight_applicator(weights[m], verification_df, bias.loc[m])
+			p = sigmoid(z)
 
-		# 1 = Gryffindor, 0 = pas Gryffindor
-		predictions = (p >= 0.5).astype(int)
-		attendu = verification_df[m]
+			# 1 = Gryffindor, 0 = pas Gryffindor
+			predictions = (p >= 0.5).astype(int)
+			attendu = verification_df[m]
 
-		accuracy = (predictions == attendu).mean()
-		perte = logloss(attendu, verification_df, p).mean()
+			accuracy = (predictions == attendu).mean()
+			perte = logloss(attendu, verification_df, p).mean()
 
-		# print(f"Prédictions correctes : {accuracy:.1%}")
-		# print(f"Logloss moyenne : {perte:.4f}")
+			print(f"Prédictions correctes : {accuracy:.1%}")
+			print(f"Logloss moyenne : {perte:.4f}")
 
-		# Référence : répondre toujours « pas Gryffindor »
-		reference = (attendu == 0).mean()
-		# print(f"Score sans distinction des élèves : {reference:.1%}")
-
-
-	weights.loc["bias"] = bias
-
-	weights.to_csv("model_weights.csv")
+			reference = (attendu == 0).mean()
+			print(f"Score sans distinction des élèves : {reference:.1%}")
 
 
-	statistiques = described_dataset.loc[["mean", "std"], matieres].T
+		weights.loc["bias"] = bias
+		statistiques = described_dataset.loc[["mean", "std"], matieres].T
 
-	parametres = weights.join(statistiques)
-	print(parametres)
-	parametres.to_csv("modele.csv")
-
+		parametres = weights.join(statistiques)
+		parametres.to_csv("modele.csv")
+	except:
+		print("corrupted .csv")
 
 if __name__ == "__main__":
 	main()

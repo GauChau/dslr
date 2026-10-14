@@ -27,8 +27,8 @@ def batch_gd(
     hold_df: pd.DataFrame,
     weights: pd.DataFrame,
     bias: pd.Series,
-    learning_rate: float = 0.07,
-    epochs: int = 100,
+    learning_rate: float = 0.01,
+    epochs: int = 1000,
     tol: float = 1e-4,
     l2_lambda: float = 0.0,
 ) -> tuple[pd.DataFrame, pd.Series]:
@@ -45,7 +45,7 @@ def batch_gd(
         y = hold_df[m].to_numpy(dtype=float)
         w = weights[m].to_numpy(dtype=float).copy()
         b = float(bias.loc[m])
-
+        joe=0
         for _ in range(epochs):
             z = X @ w + b
             p = sigmoid(z)
@@ -60,9 +60,10 @@ def batch_gd(
 
             gradient_max = max(float(max(abs(g) for g in grads)), abs(grad_bias))
             if gradient_max < tol:
-                print(f"[BGD] Convergence reached ({m})")
+                print(f"[BGD] Convergence reached ({m})", _, gradient_max)
                 break
-
+            joe =_
+        print(joe)
         weights[m] = w
         bias.loc[m] = b
 
@@ -338,8 +339,8 @@ def optimize(
     weights: pd.DataFrame,
     bias: pd.Series,
     opt: str = "bgd",
-    learning_rate: float = 0.07,
-    epochs: int = 100,
+    learning_rate: float = 0.1,
+    epochs: int = 1000,
     batch_size: int = 32,
     l2_lambda: float = 0.0,
 ) -> tuple[pd.DataFrame, pd.Series]:
