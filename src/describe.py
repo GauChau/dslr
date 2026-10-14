@@ -30,18 +30,21 @@ def describe(dataset: pd.DataFrame) -> pd.DataFrame:
 	return pd.DataFrame(statistiques).T
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage : python script.py fichier.csv")
-        sys.exit(1)
-    nom_fichier = sys.argv[1]
-    dataset = pd.read_csv(nom_fichier, sep=",")
-    with pd.option_context(
-        "display.max_columns", None,
-        "display.width", None,
-        "display.float_format", "{:.6f}".format,
-    ):
-        print(describe(dataset))
+	if len(sys.argv) < 2:
+		print("Usage : python script.py fichier.csv")
+		sys.exit(1)
+	nom_fichier = sys.argv[1]
+	try:
+		dataset = pd.read_csv(nom_fichier, sep=",")
+	except (OSError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as e:
+		sys.exit(f"Erreur de lecture du CSV : {e}")
+	with pd.option_context(
+		"display.max_columns", None,
+		"display.width", None,
+		"display.float_format", "{:.6f}".format,
+	):
+		print(describe(dataset))
 
 
 if __name__ == "__main__":
-    main()
+	main()

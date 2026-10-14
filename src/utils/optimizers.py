@@ -69,8 +69,8 @@ def batch_gd(
     hold_df: pd.DataFrame,
     weights: pd.DataFrame,
     bias: pd.Series,
-    learning_rate: float = 0.07,
-    epochs: int = 100,
+    learning_rate: float = 0.01,
+    epochs: int = 1000,
     tol: float = 1e-4,
     l2_lambda: float = 0.0,
     early_stopping: bool = False,
@@ -119,9 +119,10 @@ def batch_gd(
 
             gradient_max = max(float(max(abs(g) for g in grads)), abs(grad_bias))
             if gradient_max < tol:
-                print(f"[BGD] Convergence reached ({m})")
+                print(f"[BGD] Convergence reached ({m})", _, gradient_max)
                 break
-
+            joe =_
+        print(joe)
         weights[m] = w
         bias.loc[m] = b
 

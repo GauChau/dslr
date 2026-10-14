@@ -54,6 +54,12 @@ def compute_homogeneity(df: pd.DataFrame, courses: list[str]) -> list[tuple[str,
     scores.sort(key=lambda x: x[1])
     return scores
 
+    notes = [
+        gryfindor["Muggle Studies"].dropna(),
+        hufflepuff["Muggle Studies"].dropna(),
+        slytherin["Muggle Studies"].dropna(),
+        ravenclaw["Muggle Studies"].dropna(),
+    ]
 
 def main() -> None:
     if len(sys.argv) < 2:
