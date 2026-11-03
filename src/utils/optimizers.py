@@ -121,8 +121,6 @@ def batch_gd(
             if gradient_max < tol:
                 print(f"[BGD] Convergence reached ({m})", _, gradient_max)
                 break
-            joe =_
-        print(joe)
         weights[m] = w
         bias.loc[m] = b
 

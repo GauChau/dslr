@@ -117,12 +117,14 @@ def main():
 		parser.error("--patience must be a positive integer (>= 1).")
 
 	nom_fichier = args.dataset
+	
 	try:
 		dataset = pd.read_csv(nom_fichier, sep=",")
 	except (OSError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as e:
 		sys.exit(f"Erreur de lecture du CSV : {e}")
 
 	try:
+		
 		maison = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
 		matieres = dataset.select_dtypes(include="number").drop(columns="Index").columns
 		weights = pd.DataFrame(0.0, index=matieres,columns=maison)
@@ -145,6 +147,9 @@ def main():
 		# standardization of the 20% verifiers
 		for mats in matieres:
 			verification_df[mats] = ((verification_df[mats] - described_dataset.loc["mean", mats])/ described_dataset.loc["std", mats]).fillna(0)
+		# print("corrupted .csv")
+	except:
+		print("corrupted .csv")
 
 	weights, bias = opt_utils.optimize(
 		hold_df,
@@ -178,35 +183,32 @@ def main():
 			save_path="plots/visualization.png",
 		)
 
-	# print(weights)
+	for m in maison:
+		# Prédictions avec les poids et le biais appris
+		z = model_weight_applicator(weights[m], verification_df, bias.loc[m])
+		p = sigmoid(z)
+
+		# 1 = Gryffindor, 0 = pas Gryffindor
+		predictions = (p >= 0.5).astype(int)
+		attendu = verification_df[m]
+
+		accuracy = (predictions == attendu).mean()
+		perte = logloss(attendu, verification_df, p).mean()
+
+		print(f"Prédictions correctes : {accuracy:.1%}")
+		print(f"Logloss moyenne : {perte:.4f}")
+
+		reference = (attendu == 0).mean()
+		print(f"Score sans distinction des élèves : {reference:.1%}")
 
 
-		for m in maison:
-			# Prédictions avec les poids et le biais appris
-			z = model_weight_applicator(weights[m], verification_df, bias.loc[m])
-			p = sigmoid(z)
+	weights.loc["bias"] = bias
+	statistiques = described_dataset.loc[["mean", "std"], matieres].T
 
-			# 1 = Gryffindor, 0 = pas Gryffindor
-			predictions = (p >= 0.5).astype(int)
-			attendu = verification_df[m]
+	parametres = weights.join(statistiques)
+	parametres.to_csv("modele.csv")
+		
 
-			accuracy = (predictions == attendu).mean()
-			perte = logloss(attendu, verification_df, p).mean()
-
-			print(f"Prédictions correctes : {accuracy:.1%}")
-			print(f"Logloss moyenne : {perte:.4f}")
-
-			reference = (attendu == 0).mean()
-			print(f"Score sans distinction des élèves : {reference:.1%}")
-
-
-		weights.loc["bias"] = bias
-		statistiques = described_dataset.loc[["mean", "std"], matieres].T
-
-		parametres = weights.join(statistiques)
-		parametres.to_csv("modele.csv")
-	except:
-		print("corrupted .csv")
 
 if __name__ == "__main__":
 	main()
