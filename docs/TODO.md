@@ -21,16 +21,16 @@
 | 模組 / 檔案 | 狀態 | 核心問題 / 進度摘要 | 嚴重程度 |
 | :--- | :---: | :--- | :---: |
 | `src/utils/stats.py` | ✅ **已完成 (含 Bonus 1)** | 已修復 `dfpercentile` 越界 Bug、改寫 $O(N)$ `dfmin`/`dfmax`，並以合規向量化完成 `dfvar`, `dfstd`, `dfrange`, `dfiqr`, `dfskew`, `dfkurt`, `dfmissing_pct`, `dfunique`, `pearson_corr`。 | **Done** |
-| `src/utils/optimizers.py` | ✅ **已完成 (Bonus 2 & 3)** | 已實作共用數值穩定 `sigmoid()`、`l2_penalty()`、五大優化器演算法（BGD, SGD, Mini, Momentum, Adam），純粹封裝數學梯度下降，提供統一接口 `optimize()`。 | **Done** |
+| `src/utils/optimizers.py` | ⚠️ **待修復合併回退** | 已實作共用數值穩定 `sigmoid()`、`l2_penalty()`、五大優化器演算法，但最近一次遠端合併殘留除錯變數 `joe = _` 與 `print(joe)`，造成測試時 `NameError` 崩潰。 | **Critical** |
 | `src/utils/early_stopping.py` | ✅ **已完成 (Bonus 4)** | 獨立模組化 `EarlyStopping`（耐心計數器、最小改善閾值與最優權重回滾）與 `TrainingHistory` 容器。 | **Done** |
 | `src/utils/learning_curves.py` | ✅ **已完成 (視覺化)** | 獨立封裝 `plot_learning_curves()` 與 4 合 1 全維度消融對比儀表板 `visualize_benchmark()`，支援 `--visual`（同時生成 `plots/learning_curves.png` 與 `plots/visualization.png`）。 | **Done** |
-| `tester/tester.py` | ✅ **已完成 (Bonus 5)** | 自動化驗證套件：Pandas 數值精度、Bonus 1 統計、AST 語法樹稽核、L2 正則化衰減、早停回滾、五大優化器端到端準確率（98.19%）與 `--visual` 儀表板管線。 | **Done** |
+| `tester/tester.py` | ✅ **已完成 (Bonus 5)** | 自動化驗證套件：Pandas 數值精度、Bonus 1 統計、AST 語法樹稽核、L2 正則化衰減、早停回滾、五大優化器端到端準確率（98.19%）與 `--visual` 儀表板管線（待修復 optimizers/train 阻擋）。 | **Done** |
 | 專案結構與依賴 | ✅ **已完成** | 已重構 `data/`, `docs/`, `src/`, `src/utils/`, `tester/`，修正所有相對 `import`，加上 `#!/usr/bin/env python3` 與 `chmod +x`，並建立 `requirements.txt`、`walkthrough.md` 與 `.gitignore`。 | **Done** |
-| `src/histogram.py` | ✅ **已完成** | 繪製 13 門課程 4 學院半透明重疊直方圖，計算學院間變異數並在終端回答最均勻課程（Care of Magical Creatures 與 Arithmancy），輸出至 `plots/histogram.png`。 | **Done** |
+| `src/histogram.py` | ⚠️ **待清理死碼** | 繪製 13 門課程 4 學院半透明重疊直方圖，計算學院間變異數並輸出至 `plots/histogram.png`；惟遠端合併在 `return` 後殘留死碼與裸寫 `except:`。 | **Low** |
 | `src/scatter_plot.py` | ✅ **已完成** | 呼叫純手作 `stats.pearson_corr` 計算特徵兩兩相關係數，找出最相似特徵（Astronomy 與 DADA, $r = -1.0$），依學院顏色繪製散布圖並輸出至 `plots/scatter_plot.png`。 | **Done** |
 | `src/pair_plot.py` | ✅ **已完成** | 繪製完整散布圖矩陣，依 4 學院上色，輸出特徵選擇結論（剔除均勻無鑑別度與共線性特徵，保留 10 門課程），輸出至 `plots/pair_plot.png`。 | **Done** |
-| `src/logreg_train.py` | ⚠️ 待修準確率 & 違規 | 已移除重複 BGD 程式碼並統一委派給 `optimizers.py`，但預設驗證集準確率為 **97.19%**（全訓練集為 98.31%）；尚未導入特徵篩選與中位數補值；仍含 `.mean()`, `.sum()` 呼叫。 | **High** |
-| `src/logreg_predict.py`| ❌ 致命檔案衝突 | 訓練腳本同時產出兩份權重檔，若載入 `model_weights.csv` 會因缺少 `mean`/`std` 噴 `KeyError` 崩潰；使用 `.sum()`, `.idxmax()` 違規方法；CLI 提示錯誤。 | **Critical** |
+| `src/logreg_train.py` | ❌ **語法錯誤 & 待修準確率** | 遠端合併引入 `try-except` 縮排不匹配導致 `SyntaxError` 無法編譯；預設驗證集準確率為 **97.19%**；尚未導入特徵篩選、中位數補值；仍含 `.mean()`, `.sum()` 呼叫與裸寫 `except:`。 | **Critical** |
+| `src/logreg_predict.py`| ⚠️ **待清理違規與裸異常** | 權重檔衝突已解除（已統一輸出 `modele.csv` 並自 Git 移除 `model_weights.csv`）；CLI 提示已更新；但仍使用 `.sum()`, `.idxmax()` 違規方法、5 個冗餘 `import` 與裸寫 `except:`。 | **Medium** |
 
 ---
 
@@ -84,27 +84,33 @@
    - 題目第七章明訂：「**Professor McGonagall agrees that your algorithm is comparable to the Sorting Hat only if it has a minimum accuracy score of 98%.**」
    - 在目前 80/20 劃分驗證下，模型在 20% 驗證子集（`verification_df`）上的 Accuracy 為 **97.19%**（在整份 `dataset_train.csv` 上為 **98.31%**）。
    - **原因剖析**：
-     - **迭代輪數偏低（預設 100 輪）**：學習率 `0.07` 跑 100 輪尚未完全收斂。
-     - **捨棄了 20% 訓練資料**：`holdOut` 將資料 8/2 分後，訓練出的最終權重檔僅使用了 80% 的資料進行訓練，白白浪費了 320 筆樣本。
      - **未做特徵選擇**：納入了完全無區分度的雜訊特徵 `Care of Magical Creatures`、`Arithmancy` 與重複共線性特徵 `Defense Against the Dark Arts`。
      - **缺失值填補策略不當**：採用標準化後補 `0`（即均值填補），易受離群值影響，不如中位數填補強健。
-2. **[致命 Bug] 權重檔案衝突與崩潰**：
-   - `logreg_train.py` 同時儲存了兩個檔案：`model_weights.csv`（僅含權重與 bias）與 `modele.csv`（含權重、bias 與 `mean`、`std`）。
-   - 然而 `logreg_predict.py` 強制讀取 `weights.loc[mats, "mean"]` 與 `std`。
-   - 若使用者或評審執行 `./src/logreg_predict.py data/dataset_test.csv model_weights.csv`，會立即噴出 `KeyError: 'mean'` 異常崩潰！
-3. **[違規風險] 調用禁止的高階統計函式**：
+     - **捨棄了 20% 訓練資料**：`holdOut` 將資料 8/2 分後，訓練出的最終權重檔僅使用了 80% 的資料進行訓練，白白浪費了 320 筆樣本。
+2. **[已修復] 權重檔案衝突與崩潰**：
+   - 先前 `logreg_train.py` 同時儲存 `model_weights.csv` 與 `modele.csv`，導致 `logreg_predict.py` 載入前者時因缺少 `mean`/`std` 噴出 `KeyError: 'mean'`。
+   - 現已於訓練腳本中徹底移除 `model_weights.csv` 產出，僅儲存包含標準化參數的 `modele.csv`，且該暫存檔已自 Git 追蹤移除。
+3. **[新出現 / 致命阻擋] 遠端合併引發之語法錯誤、NameError 與裸異常**：
+   - **`src/logreg_train.py` 縮排語法錯誤**：第 149 行因 `try-except` 包裹時縮排不對齊，觸發 `SyntaxError: expected 'except' or 'finally' block`，腳本完全無法編譯與執行。
+   - **`src/utils/optimizers.py` 除錯代碼崩潰**：`batch_gd()` 第 124 行殘留 `joe = _` 與 `print(joe)`，在迴圈變數為 `epoch` 的情況下觸發 `NameError: name '_' is not defined`，導致 `tester.py` 中斷。
+   - **裸寫 `except:` 反模式**：多支腳本直接以 `try: ... except: print("corrupted .csv")` 捕捉所有例外，掩蓋真正的語法與邏輯 Bug。
+   - **`src/histogram.py` 死碼**：在 `return scores` 後殘留無法到達的代碼片段。
+4. **[違規風險] 調用禁止的高階統計函式**：
    - `logreg_train.py` 與 `logreg_predict.py` 中多次直接調用 Pandas 的 `.sum(axis=1)`, `.mean()`, `.idxmax(axis=1)`。
    - 依題目規範：「It is forbidden to use any function that does the job for you, such as: count, mean, std, min, max, percentile, etc.」。
-4. **[命令列介面與提示錯誤]**：
-   - `logreg_predict.py` 檢查參數時若 `len(sys.argv) < 3`，報錯訊息卻印出 `Usage : python script.py fichier.csv`（少提示了一個權重檔參數），且含有未使用的冗餘 `import`。
+5. **[部分修復] 命令列介面與未使用的冗餘 import**：
+   - `logreg_predict.py` 的參數提示已更新為 `Usage : script.py dataset.csv modele.csv >> houses.csv`，但仍殘留 5 個未使用的 import (`describe`, `stats`, `matplotlib.pyplot`, `math`, `logreg_train`)。
 
 #### 待辦清單 (TODO)：
-- [x] 將 `sigmoid()` 與 BGD 統一抽離至 `src/utils/optimizers.py` 共用，移除 `src/logreg_train.py` 重複的 BGD 程式碼（`ecart`, `gradient_calculator`），並串接 `--opt [bgd|sgd|mini|momentum|adam]` 與 `--lambda`。
-- [ ] 統一權重輸出檔名（移除不含 `mean`/`std` 的 `model_weights.csv`，避免誤傳給 `logreg_predict.py` 導致 `KeyError: 'mean'`）。
+- [x] 將 `sigmoid()` 與 BGD 統一抽離至 `src/utils/optimizers.py` 共用，移除 `src/logreg_train.py` 重複的 BGD 程式碼，並串接 `--opt [bgd|sgd|mini|momentum|adam]` 與 `--lambda`。
+- [x] 統一權重輸出檔名（已移除 `model_weights.csv`，僅輸出 `modele.csv`，解決 `KeyError: 'mean'`）。
+- [ ] **[優先修復] 修復 `src/logreg_train.py` 的 `try-except` 縮排錯誤 (`SyntaxError`)**。
+- [ ] **[優先修復] 移除 `src/utils/optimizers.py` 殘留之 `joe = _` 與 `print(joe)` (`NameError`)**。
+- [ ] **[優先修復] 清理 `src/histogram.py` return 後的死碼，並將各腳本裸寫 `except:` 改為精確例外捕捉**。
 - [ ] 導入特徵篩選（剔除 `Care of Magical Creatures`, `Arithmancy` 以及 `Defense Against the Dark Arts`）。
 - [ ] 將資料預處理改為「以 `stats.dfpercentile(df, 50)` 中位數補齊缺失值」+「特徵標準化（Standardization）」。
 - [ ] 提高迭代輪數並移除腳本中違規的 `.mean()`, `.sum()`, `.idxmax()` 呼叫，確保驗證集與測試集準確率皆穩定超越 **98.5% ~ 99%**。
-- [ ] 修正 `src/logreg_predict.py` 的 CLI 參數提示訊息，清理未使用的冗餘 `import`。
+- [ ] 清理 `src/logreg_predict.py` 未使用的冗餘 `import`。
 
 ---
 
@@ -140,8 +146,8 @@ dslr/
 │   └── visualization.png       # 4 合 1 全維度消融對比儀表板
 ├── tester/
 │   └── tester.py               # [已完成] 自動化測試與口試驗證套件 (describe/stats/ast/l2/e2e)
-├── modele.csv                  # 訓練輸出之標準化權重檔
-├── houses.csv                  # 最終預測結果
+├── modele.csv                  # [執行產物] 訓練輸出之標準化權重檔 (不追蹤於 Git)
+├── houses.csv                  # [執行產物] 最終預測結果 (不追蹤於 Git)
 ├── requirements.txt            # [已完成] 必要依賴套件
 ├── .gitignore                  # [已完成] Git 忽略規則
 └── README.md                   # [已完成] 雙語版專案總覽與執行指南
@@ -171,7 +177,7 @@ dslr/
 flowchart TD
     A["Phase 1: 統計核心與 describe.py ✅ 已完成<br>(stats.py 向量化、describe.py 15項指標完整輸出)"] --> B["Phase 2: 梯度下降優化器、L2 正則化與自動化測試 ✅ 已完成<br>(optimizers.py 5種演算法、--opt / --lambda 與 tester/tester.py)"]
     B --> C["Phase 3: 三大視覺化腳本與圖表輸出 ✅ 已完成<br>(histogram 半透明疊圖與方差計算、scatter_plot 純手作皮爾森、pair_plot 特徵選擇矩陣並輸出至 plots/)"]
-    C --> D["Phase 4: 解決驗證集準確率與權重檔衝突<br>(特徵篩選、中位數補齊、移除違規函式與 model_weights.csv)"]
+    C --> D["Phase 4: 解決合併回退阻擋、驗證集準確率與違規函式<br>(修復語法/NameError、特徵篩選、中位數補齊、移除違規函式)"]
     D --> E["Phase 5: 評審答辯演練 (Defense Prep)<br>(執行 ./tester/tester.py 並參閱 docs/walkthrough.md)"]
 ```
 
@@ -207,16 +213,16 @@ Following our audit against `en.subject.pdf` and `README.md`, we have **complete
 | :--- | :---: | :--- | :---: |
 | `src/utils/stats.py` | ✅ **Completed (+ Bonus 1)** | Fixed `dfpercentile` `IndexError`, rewrote $O(N)$ `dfmin`/`dfmax`, and implemented vectorized `dfvar`, `dfstd`, `dfrange`, `dfiqr`, `dfskew`, `dfkurt`, `dfmissing_pct`, `dfunique`, and `pearson_corr`. | **Done** |
 | `src/describe.py` | ✅ **Completed (+ Bonus 1)** | Uncommented `main()` output, integrated all 15 Mandatory & Bonus metrics into `statistiques`, and enabled untruncated 6-decimal formatted printing (row labels kept lowercase for compatibility with `logreg_train.py`). | **Done** |
-| `src/utils/optimizers.py` | ✅ **Completed (Bonus 2 & 3)** | Implemented numerical stability `sigmoid()`, `l2_penalty()`, 5 optimizers (BGD, SGD, Mini, Momentum, Adam), encapsulating pure gradient descent with unified interface `optimize()`. | **Done** |
+| `src/utils/optimizers.py` | ⚠️ **Merge Regression** | Implemented numerical stability `sigmoid()`, `l2_penalty()`, 5 optimizers, but recent remote merge introduced debug leftover `joe = _` causing `NameError: name '_' is not defined` crash. | **Critical** |
 | `src/utils/early_stopping.py` | ✅ **Completed (Bonus 4)** | Modularized `EarlyStopping` (patience counter, min delta threshold, best parameter rollback) and `TrainingHistory` container. | **Done** |
 | `src/utils/learning_curves.py` | ✅ **Completed (Visualization)** | Modularized `plot_learning_curves()` and 4-in-1 `visualize_benchmark()` dashboard, wired to `--visual` (generating `plots/learning_curves.png` and `plots/visualization.png`). | **Done** |
-| `tester/tester.py` | ✅ **Completed (Bonus 5)** | Automated test suite: `describe.py` vs. `pd.describe()` precision, Bonus 1 stats, AST static rule compliance, $L_2$ weight decay & bias exclusion, 5-optimizer accuracy & confusion matrix, and `--visual` dashboard pipeline. | **Done** |
+| `tester/tester.py` | ✅ **Completed (Bonus 5)** | Automated test suite: `describe.py` vs. `pd.describe()` precision, Bonus 1 stats, AST static rule compliance, $L_2$ weight decay & bias exclusion, 5-optimizer accuracy & confusion matrix, and `--visual` dashboard pipeline (currently blocked by merge regression). | **Done** |
 | Structure & Deps | ✅ **Completed** | Restructured into `data/`, `docs/`, `src/`, `src/utils/`, `tester/`; fixed relative imports; added shebangs (`chmod +x`), `requirements.txt`, `walkthrough.md`, and `.gitignore`. | **Done** |
-| `src/histogram.py` | ✅ **Completed** | Generates 13-course translucent overlapping histogram matrix, computes between-house variance answering homogeneity ('Care of Magical Creatures' and 'Arithmancy'), and saves to `plots/histogram.png`. | **Done** |
+| `src/histogram.py` | ⚠️ **Dead Code Cleanup** | Generates 13-course translucent overlapping histogram matrix, computes between-house variance, and saves to `plots/histogram.png`; recent merge left unreachable dead code after `return` and bare `except:`. | **Low** |
 | `src/scatter_plot.py` | ✅ **Completed** | Uses from-scratch `stats.pearson_corr()`, identifies most similar features ('Astronomy' and 'DADA', $r = -1.0$), colors points by House, and saves to `plots/scatter_plot.png`. | **Done** |
 | `src/pair_plot.py` | ✅ **Completed** | Renders full scatter matrix, colors by House, outputs feature selection recommendations (dropping homogeneous/collinear features, retaining 10), and saves to `plots/pair_plot.png`. | **Done** |
-| `src/logreg_train.py` | ⚠️ Needs Feature Selection | Removed duplicate inline BGD code and delegated to `optimizers.py`. Full-train accuracy is **98.31%** (20% hold-out validation split is **97.19%**); needs feature selection, median imputation, and removal of `.mean()`, `.sum()`. | **High** |
-| `src/logreg_predict.py`| ❌ Crash Bug | Training outputs two weight files; passing `model_weights.csv` crashes with `KeyError: 'mean'`; uses `.sum()` and `.idxmax()`; incorrect CLI usage string. | **Critical** |
+| `src/logreg_train.py` | ❌ **SyntaxError & Features** | Merge indentation mismatch throws `SyntaxError`; hold-out validation accuracy is **97.19%**; pending feature selection, median imputation, removal of `.mean()`, `.sum()`, and bare `except:` cleanup. | **Critical** |
+| `src/logreg_predict.py`| ⚠️ **Pending Cleanup** | Weight file conflict resolved (`modele.csv` unified, `model_weights.csv` untracked); CLI usage string updated; still uses `.sum()`, `.idxmax()`, 5 unused imports, and bare `except:`. | **Medium** |
 
 ---
 
@@ -270,26 +276,31 @@ Following our audit against `en.subject.pdf` and `README.md`, we have **complete
    - Chapter VII of `en.subject.pdf` states: *"Professor McGonagall agrees that your algorithm is comparable to the Sorting Hat only if it has a minimum accuracy score of 98%."*
    - Tested on the 20% validation split (`verification_df`), `modele.csv` achieves **97.19% accuracy** (while achieving **98.31%** on the full `dataset_train.csv`).
    - **Root Causes**:
-     - **Insufficient Default Epochs (100)**: With `learning_rate = 0.07`, 100 epochs stops before full convergence.
-     - **Discards 20% of Training Data**: `holdOut()` drops 20% of `dataset_train.csv` (320 rows) even when generating the final production weights.
      - **No Feature Selection**: Includes noisy homogeneous features (`Care of Magical Creatures`, `Arithmancy`) and collinear duplicate features (`Defense Against the Dark Arts`).
      - **Mean Imputation instead of Median**: `fillna(0)` after standardization imputes missing values with the mean (sensitive to outliers) rather than the median.
-2. **[Critical Crash Bug] Conflicting Weight Files (`model_weights.csv` vs `modele.csv`)**:
-   - `logreg_train.py` saves **two** files: `model_weights.csv` (weights and bias only) and `modele.csv` (weights, bias, `mean`, and `std`).
-   - `logreg_predict.py` requires `weights.loc[mats, "mean"]` and `std`.
-   - Running `./src/logreg_predict.py data/dataset_test.csv model_weights.csv` immediately crashes with `KeyError: 'mean'`!
-3. **[Rule Violation Risk] Use of Built-in Statistical Methods**:
-   - Both scripts call Pandas `.sum(axis=1)`, `.mean()`, and `.idxmax(axis=1)`.
-4. **[CLI Usage String Bug]**:
-   - `logreg_predict.py` checks `if len(sys.argv) < 3:` but prints `Usage : python script.py fichier.csv` (missing the second argument in the message) and contains unused imports.
+     - **Discards 20% of Training Data**: `holdOut()` drops 20% of `dataset_train.csv` (320 rows) even when generating final production weights.
+2. **[Fixed] Conflicting Weight Files (`model_weights.csv` vs `modele.csv`)**:
+   - `model_weights.csv` output was removed from `src/logreg_train.py`; now only `modele.csv` (with standardization statistics) is exported, eliminating the `KeyError: 'mean'` crash. The temporary file has also been untracked from git.
+3. **[New / Critical Blocker] Merge Regressions: SyntaxError, NameError & Bare Exceptions**:
+   - **`SyntaxError` in `src/logreg_train.py`**: Line 149 indentation mismatch inside `try...except` prevents script compilation.
+   - **`NameError` in `src/utils/optimizers.py`**: Line 124 in `batch_gd()` contains debug artifact `joe = _` and `print(joe)`, crashing with `NameError: name '_' is not defined` during testing.
+   - **Bare `except:` Anti-Pattern**: Broad exceptions across `logreg_train.py`, `logreg_predict.py`, `scatter_plot.py`, `pair_plot.py`, and `histogram.py` mask real errors and print `"corrupted .csv"`.
+   - **Dead Code in `src/histogram.py`**: Unreachable code snippet after `return scores`.
+4. **[Rule Violation Risk] Use of Built-in Statistical Methods**:
+   - Both scripts call Pandas `.sum(axis=1)`, `.mean()`, and `.idxmax(axis=1)`, risking peer defense penalties.
+5. **[Partially Fixed] CLI Usage String & Unused Imports**:
+   - `logreg_predict.py` CLI usage string was updated to `script.py dataset.csv modele.csv >> houses.csv`, but still retains 5 unused imports (`describe`, `stats`, `matplotlib.pyplot`, `math`, `logreg_train`).
 
 #### Actionable TODO:
-- [x] Unify `sigmoid()` and BGD in `src/utils/optimizers.py`, remove duplicate inline BGD code (`ecart`, `gradient_calculator`) from `src/logreg_train.py`, and wire `--opt [bgd|sgd|mini|momentum|adam]` and `--lambda`.
-- [ ] Consolidate trained parameters into a single weight file (eliminating `model_weights.csv` so `KeyError: 'mean'` can never happen).
+- [x] Unify `sigmoid()` and BGD in `src/utils/optimizers.py`, remove duplicate inline BGD code from `src/logreg_train.py`, and wire `--opt [bgd|sgd|mini|momentum|adam]` and `--lambda`.
+- [x] Consolidate trained parameters into a single weight file (eliminated `model_weights.csv`, resolving `KeyError: 'mean'`).
+- [ ] **[Priority Fix] Fix indentation `SyntaxError` in `src/logreg_train.py`**.
+- [ ] **[Priority Fix] Remove leftover `joe = _` and `print(joe)` (`NameError`) from `src/utils/optimizers.py`**.
+- [ ] **[Priority Fix] Remove dead code in `src/histogram.py` and replace bare `except:` blocks with precise exception handling**.
 - [ ] Drop `Care of Magical Creatures`, `Arithmancy`, and `Defense Against the Dark Arts` during preprocessing.
 - [ ] Impute missing values using manual **median** (`stats.dfpercentile(df, 50)`) prior to standardization.
 - [ ] Increase epochs and remove all forbidden `.mean()`, `.sum()`, `.idxmax()` calls so validation and test accuracy consistently exceed **98.5% – 99%**.
-- [ ] Fix CLI usage message and clean up unused imports in `src/logreg_predict.py`.
+- [ ] Clean up unused imports in `src/logreg_predict.py`.
 
 ---
 
@@ -325,8 +336,8 @@ dslr/
 │   └── visualization.png       # 4-in-1 multi-dimensional ablation dashboard
 ├── tester/
 │   └── tester.py               # [Completed] Automated verification & defense test suite (describe/stats/ast/l2/e2e)
-├── modele.csv                  # Production model weights with standardization parameters
-├── houses.csv                  # Final predicted house classifications
+├── modele.csv                  # [Generated Artifact] Production model weights with standardization parameters (untracked)
+├── houses.csv                  # [Generated Artifact] Final predicted house classifications (untracked)
 ├── requirements.txt            # [Completed] Project runtime dependencies
 ├── .gitignore                  # [Completed] Git ignore rules
 └── README.md                   # [Completed] Bilingual project documentation & user guide
@@ -357,6 +368,6 @@ dslr/
 flowchart TD
     A["Phase 1: Core Stats & describe.py ✅ Done<br>(Vectorized stats.py + 15-metric describe.py output)"] --> B["Phase 2: Optimizers, L2 Regularization & Tester ✅ Done<br>(optimizers.py 5 algorithms, --opt / --lambda & tester/tester.py)"]
     B --> C["Phase 3: 3 Visualization Scripts & Plot Export ✅ Done<br>(Translucent histogram & variance, manual Pearson scatter plot with House colors, pair_plot matrix & export to plots/)"]
-    C --> D["Phase 4: Fix Hold-Out Accuracy & Weight File Conflict<br>(Feature selection, median imputation, remove forbidden methods & model_weights.csv)"]
+    C --> D["Phase 4: Fix Merge Blockers, Hold-Out Accuracy & Method Violations<br>(Fix Syntax/NameError, feature selection, median imputation, remove built-in methods)"]
     D --> E["Phase 5: Defense Preparation<br>(Run ./tester/tester.py & review derivations in docs/walkthrough.md)"]
 ```
