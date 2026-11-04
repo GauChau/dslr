@@ -12,7 +12,7 @@ if len(sys.argv) < 3:
 	print("Usage : script.py dataset.csv modele.csv >> houses.csv")
 	sys.exit(1)
 dataset_file = sys.argv[1]
-# dataset = pd.read_csv(dataset_file, sep=",")
+
 try:
     dataset = pd.read_csv(dataset_file, sep=",")
 except (OSError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as e:

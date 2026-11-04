@@ -138,7 +138,6 @@ def main():
 		verification_df = reality.join(dataset.select_dtypes(include="number").drop(columns="Index")).drop(index=hold_df.index)
 
 		described_dataset = dc.describe(hold_df)
-		# print(described_dataset)
 
 		# standardization of 80% to training
 		for mats in matieres:
@@ -148,66 +147,66 @@ def main():
 		for mats in matieres:
 			verification_df[mats] = ((verification_df[mats] - described_dataset.loc["mean", mats])/ described_dataset.loc["std", mats]).fillna(0)
 		# print("corrupted .csv")
-	except:
-		print("corrupted .csv")
 
-	weights, bias = opt_utils.optimize(
-		hold_df,
-		weights,
-		bias,
-		opt=args.opt,
-		learning_rate=learning_rate,
-		l2_lambda=args.l2_lambda,
-		early_stopping=args.early_stopping,
-		patience=args.patience,
-	)
-
-	if args.visual:
-		from utils.learning_curves import plot_learning_curves, visualize_benchmark
-
-		os.makedirs("plots", exist_ok=True)
-		plot_learning_curves(
+		weights, bias = opt_utils.optimize(
 			hold_df,
 			weights,
 			bias,
+			opt=args.opt,
+			learning_rate=learning_rate,
 			l2_lambda=args.l2_lambda,
 			early_stopping=args.early_stopping,
 			patience=args.patience,
-			save_path="plots/learning_curves.png",
-		)
-		visualize_benchmark(
-			hold_df,
-			verification_df=verification_df,
-			weights=weights,
-			bias=bias,
-			save_path="plots/visualization.png",
 		)
 
-	for m in maison:
-		# Prédictions avec les poids et le biais appris
-		z = model_weight_applicator(weights[m], verification_df, bias.loc[m])
-		p = sigmoid(z)
+		if args.visual:
+			from utils.learning_curves import plot_learning_curves, visualize_benchmark
 
-		# 1 = Gryffindor, 0 = pas Gryffindor
-		predictions = (p >= 0.5).astype(int)
-		attendu = verification_df[m]
+			os.makedirs("plots", exist_ok=True)
+			plot_learning_curves(
+				hold_df,
+				weights,
+				bias,
+				l2_lambda=args.l2_lambda,
+				early_stopping=args.early_stopping,
+				patience=args.patience,
+				save_path="plots/learning_curves.png",
+			)
+			visualize_benchmark(
+				hold_df,
+				verification_df=verification_df,
+				weights=weights,
+				bias=bias,
+				save_path="plots/visualization.png",
+			)
 
-		accuracy = (predictions == attendu).mean()
-		perte = logloss(attendu, verification_df, p).mean()
+		for m in maison:
+			# Prédictions avec les poids et le biais appris
+			z = model_weight_applicator(weights[m], verification_df, bias.loc[m])
+			p = sigmoid(z)
 
-		print(f"Prédictions correctes : {accuracy:.1%}")
-		print(f"Logloss moyenne : {perte:.4f}")
+			# 1 = Gryffindor, 0 = pas Gryffindor
+			predictions = (p >= 0.5).astype(int)
+			attendu = verification_df[m]
 
-		reference = (attendu == 0).mean()
-		print(f"Score sans distinction des élèves : {reference:.1%}")
+			accuracy = (predictions == attendu).mean()
+			perte = logloss(attendu, verification_df, p).mean()
+
+			print(f"Prédictions correctes : {accuracy:.1%}")
+			print(f"Logloss moyenne : {perte:.4f}")
+
+			reference = (attendu == 0).mean()
+			print(f"Score sans distinction des élèves : {reference:.1%}")
 
 
-	weights.loc["bias"] = bias
-	statistiques = described_dataset.loc[["mean", "std"], matieres].T
+		weights.loc["bias"] = bias
+		statistiques = described_dataset.loc[["mean", "std"], matieres].T
 
-	parametres = weights.join(statistiques)
-	parametres.to_csv("modele.csv")
+		parametres = weights.join(statistiques)
+		parametres.to_csv("modele.csv")
 		
+	except:
+		print("corrupted .csv")
 
 
 if __name__ == "__main__":
