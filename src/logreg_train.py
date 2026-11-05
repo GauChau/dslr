@@ -45,7 +45,7 @@ def holdOut(dataset: pd.DataFrame, reality: pd.DataFrame)-> pd.DataFrame:
 	train = []
 	for m in reality.columns:
 		group = result[result[m] == 1]
-		selection=group.sample(frac=0.8,random_state=50)
+		selection=group.sample(frac=0.8, random_state=50)
 		train.append(selection)
 
 	finish = pd.concat(train)
@@ -117,6 +117,7 @@ def main():
 		parser.error("--patience must be a positive integer (>= 1).")
 
 	nom_fichier = args.dataset
+
 	
 	try:
 		dataset = pd.read_csv(nom_fichier, sep=",")
@@ -124,18 +125,19 @@ def main():
 		sys.exit(f"Erreur de lecture du CSV : {e}")
 
 	try:
-		
+		excluded_courses = ["Arithmancy","Care of Magical Creatures","Defense Against the Dark Arts"]
+		features = dataset.select_dtypes(include="number").drop(columns=["Index", *excluded_courses])
 		maison = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
-		matieres = dataset.select_dtypes(include="number").drop(columns="Index").columns
+		matieres = features.columns
 		weights = pd.DataFrame(0.0, index=matieres,columns=maison)
 		reality = pd.DataFrame({m: (dataset["Hogwarts House"] == m).astype(int) for m in maison})
 
-		learning_rate = 0.05
+		# learning_rate = 1
 
 		bias = pd.Series(0.0, index=maison)
 
-		hold_df = holdOut(dataset.select_dtypes(include="number").drop(columns="Index"),reality).sort_index()
-		verification_df = reality.join(dataset.select_dtypes(include="number").drop(columns="Index")).drop(index=hold_df.index)
+		hold_df = holdOut(features, reality).sort_index()
+		verification_df = reality.join(features).drop(index=hold_df.index)
 
 		described_dataset = dc.describe(hold_df)
 
@@ -153,7 +155,7 @@ def main():
 			weights,
 			bias,
 			opt=args.opt,
-			learning_rate=learning_rate,
+			# learning_rate=learning_rate,
 			l2_lambda=args.l2_lambda,
 			early_stopping=args.early_stopping,
 			patience=args.patience,
@@ -205,8 +207,9 @@ def main():
 		parametres = weights.join(statistiques)
 		parametres.to_csv("modele.csv")
 		
-	except:
-		print("corrupted .csv")
+	except Exception as error:
+		print(f"Erreur : {error}", file=sys.stderr)
+		sys.exit(1)
 
 
 if __name__ == "__main__":

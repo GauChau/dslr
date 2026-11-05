@@ -525,6 +525,21 @@ def test_visual_benchmark(results: list[tuple[str, bool, str]]) -> None:
         f"plots/learning_curves.png ({lc_file.stat().st_size if lc_file.exists() else 0} bytes), plots/visualization.png ({dash_file.stat().st_size if dash_file.exists() else 0} bytes)",
     )
 
+def test_accuracy_model(houses: pd.Series)->None:
+    
+    try:
+        dataset = pd.read_csv("data/dataset_train.csv", sep=",")
+    except (OSError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as e:
+        sys.exit(f"Erreur de lecture du CSV test: {e}")
+
+    s1 = dataset["Hogwarts House"]
+    s2 = houses
+    print(s1,'\n', s2)
+    a, b = s1.align(s2, join="inner")
+
+    pourcentage = accuracy_score(a, b)
+    print("pourcentage accuracy ensenble: ",pourcentage,"\n")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="DSLR Automated Verification & Defense Test Suite")

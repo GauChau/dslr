@@ -119,7 +119,7 @@ def batch_gd(
 
             gradient_max = max(float(max(abs(g) for g in grads)), abs(grad_bias))
             if gradient_max < tol:
-                print(f"[BGD] Convergence reached ({m})", _, gradient_max)
+                print(f"[BGD] Convergence reached ({m})")
                 break
         weights[m] = w
         bias.loc[m] = b
@@ -485,7 +485,7 @@ def optimize(
     """Dispatch training to the selected optimization algorithm."""
     opt_name = opt.lower().strip()
     if opt_name in ("bgd", "batch"):
-        lr = 0.07 if learning_rate is None else learning_rate
+        lr = 1 if learning_rate is None else learning_rate
         ep = 100 if epochs is None else epochs
         return batch_gd(
             hold_df,

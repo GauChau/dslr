@@ -9,8 +9,9 @@ import os
 import sys
 import pathlib
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import utils.stats as stats
+
 
 # Ensure src/ is on sys.path
 SRC_DIR = pathlib.Path(__file__).resolve().parent
@@ -38,14 +39,23 @@ def compute_homogeneity(df: pd.DataFrame, courses: list[str]) -> list[tuple[str,
         for house in houses:
             series = df.loc[df["Hogwarts House"] == house, course].dropna()
             if len(series) > 1:
-                vals = series.to_numpy()
-                means.append(float(np.mean(vals)))
-                stds.append(float(np.std(vals, ddof=1)))
+                # vals = series.to_numpy()
+                # means.append(float(np.mean(vals)))
+                # stds.append(float(np.std(vals, ddof=1)))
+
+                vals = series.to_frame(name=course)
+                means.append(float(stats.dfmean(vals).loc[course]))
+                stds.append(float(stats.dfstd(vals).loc[course]))
             else:
                 means.append(0.0)
                 stds.append(1.0)
-        pooled_std = float(np.mean(stds)) if stds else 1.0
-        norm_var = float(np.var(means)) / (pooled_std ** 2) if pooled_std > 0 else 0.0
+        # pooled_std = float(np.mean(stds)) if stds else 1.0
+        # norm_var = float(np.var(means)) / (pooled_std ** 2) if pooled_std > 0 else 0.0
+        pooled_std = sum(stds) / len(stds)
+        mean_of_means = sum(means) / len(means)
+        between_house_var = (sum((value - mean_of_means) ** 2 for value in means)/ len(means))
+        norm_var = (between_house_var / (pooled_std ** 2)if pooled_std > 0 else 0.0)
+
         scores.append((course, norm_var))
 
     scores.sort(key=lambda x: x[1])

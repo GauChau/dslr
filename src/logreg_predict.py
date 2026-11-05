@@ -12,7 +12,6 @@ if len(sys.argv) < 3:
 	print("Usage : script.py dataset.csv modele.csv >> houses.csv")
 	sys.exit(1)
 dataset_file = sys.argv[1]
-
 try:
     dataset = pd.read_csv(dataset_file, sep=",")
 except (OSError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as e:
@@ -49,5 +48,6 @@ try:
 	resultat.to_csv("houses.csv", index=False)
 	print(resultat)
 
-except:
-	print("Corrupted .csv")
+except Exception as error:
+	print(f"Erreur : {error}", file=sys.stderr)
+	sys.exit(1)
