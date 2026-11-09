@@ -19,8 +19,8 @@
 - [3. 加分項目](#3-加分項目)
   - [Bonus 1: `src/utils/stats.py` 擴充統計指標](#bonus-1-srcutilsstatspy-擴充統計指標)
   - [Bonus 2: `src/utils/optimizers.py` 各類梯度下降優化演算法與其優點](#bonus-2-srcutilsoptimizerspy-各類梯度下降優化演算法與其優點)
-  - [Bonus 3: 正則化機制 ($L_2$ Regularization / Ridge)](#bonus-3-正則化機制-l_2-regularization--ridge)
-  - [Bonus 4: 學習曲線視覺化與 Early Stopping](#bonus-4-學習曲線視覺化與-early-stopping)
+  - [Bonus 3: 正則化機制 ($L_2$ Regularization / Ridge)](#bonus-3-正則化機制--regularization--ridge)
+  - [Bonus 4: 學習曲線視覺化與 Early Stopping](#bonus-4-學習曲線視覺化與-early-stopping-srcutilsearly_stoppingpy--srcutilslearning_curvespy)
   - [Bonus 5: 自動化測試與口試答辯驗證套件 (`tester/tester.py`)](#bonus-5-自動化測試與口試答辯驗證套件-testertesterpy)
 
 ---
@@ -69,6 +69,12 @@
   4. **One-vs-All 標籤構建**：將 4 個學院標籤轉換為 4 組二元標籤向量（$y \in \{0, 1\}$）。
   5. **模型訓練**：增加 Bias 偏置項（插入全為 $1$ 的欄位 $x_0 = 1$），使用梯度下降演算法迭代更新權重矩陣 $\theta$。
   6. **儲存權重**：將 4 個分類器的權重、偏置項與標準化參數（Median / Mean / Std）儲存至權重檔。
+
+> #### 💡 什麼叫做One-vs-All？
+> 分類器 1：葛來分多（One） vs. 雷文克勞 + 赫夫帕夫 + 史萊哲林（All，統稱為「非葛來分多」）<br/>
+> 分類器 2：雷文克勞（One） vs. 葛來分多 + 赫夫帕夫 + 史萊哲林（All，統稱為「非雷文克勞」）<br/>
+> 分類器 3：赫夫帕夫（One） vs. 葛來分多 + 雷文克勞 + 史萊哲林（All，統稱為「非赫夫帕夫」）<br/>
+> 分類器 4：史萊哲林（One） vs. 葛來分多 + 雷文克勞 + 赫夫帕夫（All，統稱為「非史萊哲林」）<br/>
 
 > #### 💡 深入剖析：為什麼缺失值處理採用「中位數（Median）」填補？
 > 處理成績數據中的遺失值（`NaN`）時，常見策略包括「整行刪除（Drop Rows）」、「補平均值（Mean）」、「補眾數（Mode）」與「補中位數（Median）」。選擇中位數的核心考量如下：
@@ -527,8 +533,8 @@ $$x_{\text{norm}} = \frac{x - \mu}{\sigma}$$
 - [3. Bonus Part](#3-bonus-part)
   - [Bonus 1: Extended Metrics in `src/utils/stats.py`](#bonus-1-extended-metrics-in-srcutilsstatspy)
   - [Bonus 2: Other Optimization Algorithms in `src/utils/optimizers.py` — Math & Advantages](#bonus-2-other-optimization-algorithms-in-srcutilsoptimizerspy--math--advantages)
-  - [Bonus 3: $L_2$ Regularization (Ridge)](#bonus-3-l_2-regularization-ridge)
-  - [Bonus 4: Learning Curve Visualization & Early Stopping](#bonus-4-learning-curve-visualization--early-stopping)
+  - [Bonus 3: $L_2$ Regularization (Ridge)](#bonus-3--regularization-ridge)
+  - [Bonus 4: Learning Curve Visualization & Early Stopping](#bonus-4-learning-curve-visualization--early-stopping-srcutilsearly_stoppingpy--srcutilslearning_curvespy)
   - [Bonus 5: Automated Test & Defense Verification Suite (`tester/tester.py`)](#bonus-5-automated-test--defense-verification-suite-testertesterpy)
 
 ---

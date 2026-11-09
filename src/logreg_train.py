@@ -45,7 +45,7 @@ def holdOut(dataset: pd.DataFrame, reality: pd.DataFrame)-> pd.DataFrame:
 	train = []
 	for m in reality.columns:
 		group = result[result[m] == 1]
-		selection=group.sample(frac=0.8, random_state=50)
+		selection=group.sample(frac=0.8, random_state=40)
 		train.append(selection)
 
 	finish = pd.concat(train)
@@ -118,7 +118,7 @@ def main():
 
 	nom_fichier = args.dataset
 
-	
+
 	try:
 		dataset = pd.read_csv(nom_fichier, sep=",")
 	except (OSError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as e:
@@ -206,7 +206,7 @@ def main():
 
 		parametres = weights.join(statistiques)
 		parametres.to_csv("modele.csv")
-		
+
 	except Exception as error:
 		print(f"Erreur : {error}", file=sys.stderr)
 		sys.exit(1)
